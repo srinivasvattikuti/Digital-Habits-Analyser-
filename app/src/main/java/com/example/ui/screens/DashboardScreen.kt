@@ -47,6 +47,10 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -55,12 +59,22 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.model.ProactiveNudge
+import com.example.data.model.UserProfileEntity
+import com.example.data.model.UserRole
 import com.example.ui.components.AppUsageRowItem
+import com.example.ui.components.BehaviorForecastCard
 import com.example.ui.components.CategoryDistributionCard
 import com.example.ui.components.CompulsiveVsIntentionalGaugeCard
+import com.example.ui.components.HabitDimensionsRadarCard
 import com.example.ui.components.HourlyUsageHeatmapCard
+import com.example.ui.components.InteractiveHabitGoalsCard
+import com.example.ui.components.ProactiveNudgesSection
 import com.example.ui.components.SummaryMetricCard
 import com.example.ui.components.UsageOverTimeCard
+import com.example.ui.components.UserProfileEditDialog
+import com.example.ui.components.UserProfileScheduleBanner
+import com.example.ui.components.WeekOverWeekComparisonCard
 import com.example.ui.theme.MintEmerald
 import com.example.ui.theme.PolishAiCallout
 import com.example.ui.theme.PolishLightRose
@@ -90,10 +104,30 @@ fun DashboardScreen(
     onOpenUsageSettings: () -> Unit,
     onOpenNotificationSettings: () -> Unit,
     onNavigateToChat: () -> Unit,
+    onSaveProfile: (UserProfileEntity) -> Unit = {},
+    onApplyRolePreset: (UserRole) -> Unit = {},
+    onUpdateGoalTarget: (String, Int) -> Unit = { _, _ -> },
+    onToggleGoal: (String, Boolean) -> Unit = { _, _ -> },
+    onNudgeAction: (ProactiveNudge) -> Unit = {},
     onAskAboutHour: ((Int) -> Unit)? = null,
     onDismissStatus: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var showProfileDialog by remember { mutableStateOf(false) }
+
+    if (showProfileDialog) {
+        UserProfileEditDialog(
+            currentProfile = state.userProfile,
+            onDismiss = { showProfileDialog = false },
+            onSaveProfile = { updated ->
+                onSaveProfile(updated)
+            },
+            onApplyRolePreset = { role ->
+                onApplyRolePreset(role)
+            }
+        )
+    }
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -132,6 +166,22 @@ fun DashboardScreen(
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    IconButton(
+                        onClick = { showProfileDialog = true },
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(PolishPrimaryContainer)
+                            .testTag("header_profile_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AccountCircle,
+                            contentDescription = "Profile & Schedule",
+                            tint = PolishWineDark,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
                     IconButton(
                         onClick = onRefreshTelemetry,
                         modifier = Modifier
@@ -173,6 +223,14 @@ fun DashboardScreen(
                     }
                 }
             }
+        }
+
+        // 1.5 User Profile & Schedule Context Banner
+        item {
+            UserProfileScheduleBanner(
+                profile = state.userProfile,
+                onEditProfileClick = { showProfileDialog = true }
+            )
         }
 
         // 2. Status message banner (if active)
@@ -485,7 +543,44 @@ fun DashboardScreen(
             }
         }
 
-        // 6. Key Metric Cards Grid (2x2)
+        // 6. Real-Time Proactive Habit Nudges & Suggestions
+        if (state.proactiveNudges.isNotEmpty()) {
+            item {
+                ProactiveNudgesSection(
+                    nudges = state.proactiveNudges,
+                    onNudgeAction = onNudgeAction
+                )
+            }
+        }
+
+        // 7. Week-Over-Week Comparison Section (Calculated Averages & Percentage Changes)
+        item {
+            WeekOverWeekComparisonCard(summary = state.weekOverWeekSummary)
+        }
+
+        // 8. Interactive Habit Goals & Target Adjuster
+        item {
+            InteractiveHabitGoalsCard(
+                goalProgressList = state.goalProgressList,
+                onUpdateGoalTarget = onUpdateGoalTarget,
+                onToggleGoal = onToggleGoal
+            )
+        }
+
+        // 9. Behavioral Forecasting & Bedtime Doomscroll Predictor
+        item {
+            BehaviorForecastCard(
+                forecast = state.behaviorForecast,
+                onOpenCopilot = onNavigateToChat
+            )
+        }
+
+        // 10. 5-Pillar Holistic Equilibrium Radar Chart
+        item {
+            HabitDimensionsRadarCard(dimensions = state.habitDimensions)
+        }
+
+        // 11. Key Metric Cards Grid (2x2)
         item {
             val hours = state.totalScreenTimeMinutes / 60
             val mins = state.totalScreenTimeMinutes % 60

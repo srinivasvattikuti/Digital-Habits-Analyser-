@@ -153,6 +153,14 @@ fun HabitTrackerApp(viewModel: HabitTrackerViewModel) {
                         onOpenUsageSettings = viewModel::openUsageSettings,
                         onOpenNotificationSettings = viewModel::openNotificationListenerSettings,
                         onNavigateToChat = { currentDestination = HabitDestination.ASK_AI },
+                        onSaveProfile = viewModel::saveUserProfile,
+                        onApplyRolePreset = viewModel::applyRolePreset,
+                        onUpdateGoalTarget = viewModel::updateGoalTarget,
+                        onToggleGoal = viewModel::toggleGoalEnabled,
+                        onNudgeAction = { nudge ->
+                            viewModel.sendChatMessage("How can I act on this habit recommendation: '${nudge.title} - ${nudge.message}'?")
+                            currentDestination = HabitDestination.ASK_AI
+                        },
                         onAskAboutHour = { hour ->
                             val timeDesc = when {
                                 hour == 0 -> "12:00 AM (midnight)"
@@ -171,7 +179,11 @@ fun HabitTrackerApp(viewModel: HabitTrackerViewModel) {
                     HabitDestination.INSIGHTS -> InsightsScreen(
                         insight = latestInsight,
                         isAnalyzing = dashboardState.isAnalyzing,
-                        onRunAnalysis = viewModel::runAiAnalysis
+                        onRunAnalysis = viewModel::runAiAnalysis,
+                        weekOverWeekSummary = dashboardState.weekOverWeekSummary,
+                        behaviorForecast = dashboardState.behaviorForecast,
+                        habitDimensions = dashboardState.habitDimensions,
+                        onOpenCopilot = { currentDestination = HabitDestination.ASK_AI }
                     )
                     HabitDestination.RECOMMENDATIONS -> RecommendationsScreen(
                         recommendations = recommendations

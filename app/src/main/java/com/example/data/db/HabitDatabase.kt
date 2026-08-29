@@ -8,8 +8,10 @@ import com.example.data.model.AppInfoEntity
 import com.example.data.model.AppRecommendationEntity
 import com.example.data.model.ChatMessageEntity
 import com.example.data.model.DailyAggregateEntity
+import com.example.data.model.HabitGoalEntity
 import com.example.data.model.HabitInsightEntity
 import com.example.data.model.UsageEventEntity
+import com.example.data.model.UserProfileEntity
 
 @Database(
     entities = [
@@ -18,9 +20,11 @@ import com.example.data.model.UsageEventEntity
         DailyAggregateEntity::class,
         HabitInsightEntity::class,
         ChatMessageEntity::class,
-        AppRecommendationEntity::class
+        AppRecommendationEntity::class,
+        HabitGoalEntity::class,
+        UserProfileEntity::class
     ],
-    version = 1,
+    version = 3,
     exportSchema = false
 )
 abstract class HabitDatabase : RoomDatabase() {
@@ -30,6 +34,8 @@ abstract class HabitDatabase : RoomDatabase() {
     abstract fun habitInsightDao(): HabitInsightDao
     abstract fun chatMessageDao(): ChatMessageDao
     abstract fun appRecommendationDao(): AppRecommendationDao
+    abstract fun habitGoalDao(): HabitGoalDao
+    abstract fun userProfileDao(): UserProfileDao
 
     companion object {
         @Volatile

@@ -9,8 +9,10 @@ import com.example.data.model.AppInfoEntity
 import com.example.data.model.AppRecommendationEntity
 import com.example.data.model.ChatMessageEntity
 import com.example.data.model.DailyAggregateEntity
+import com.example.data.model.HabitGoalEntity
 import com.example.data.model.HabitInsightEntity
 import com.example.data.model.UsageEventEntity
+import com.example.data.model.UserProfileEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -111,3 +113,43 @@ interface AppRecommendationDao {
     @Query("DELETE FROM app_recommendations")
     suspend fun clearAll()
 }
+
+@Dao
+interface HabitGoalDao {
+    @Query("SELECT * FROM habit_goals ORDER BY id ASC")
+    fun getAllGoals(): Flow<List<HabitGoalEntity>>
+
+    @Query("SELECT * FROM habit_goals ORDER BY id ASC")
+    suspend fun getAllGoalsSync(): List<HabitGoalEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertGoals(goals: List<HabitGoalEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertGoal(goal: HabitGoalEntity)
+
+    @Query("UPDATE habit_goals SET targetValue = :targetValue WHERE id = :id")
+    suspend fun updateGoalTarget(id: String, targetValue: Int)
+
+    @Query("UPDATE habit_goals SET isEnabled = :isEnabled WHERE id = :id")
+    suspend fun updateGoalEnabled(id: String, isEnabled: Boolean)
+
+    @Query("DELETE FROM habit_goals")
+    suspend fun clearAll()
+}
+
+@Dao
+interface UserProfileDao {
+    @Query("SELECT * FROM user_profiles WHERE id = 1 LIMIT 1")
+    fun getUserProfile(): Flow<UserProfileEntity?>
+
+    @Query("SELECT * FROM user_profiles WHERE id = 1 LIMIT 1")
+    suspend fun getUserProfileSync(): UserProfileEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertUserProfile(profile: UserProfileEntity)
+
+    @Query("DELETE FROM user_profiles")
+    suspend fun clearAll()
+}
+

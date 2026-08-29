@@ -42,7 +42,13 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.model.BehaviorForecast
+import com.example.data.model.HabitDimensionScore
 import com.example.data.model.HabitInsightEntity
+import com.example.data.model.WeekOverWeekSummary
+import com.example.ui.components.BehaviorForecastCard
+import com.example.ui.components.HabitDimensionsRadarCard
+import com.example.ui.components.WeekOverWeekComparisonCard
 import com.example.ui.theme.MintEmerald
 import com.example.ui.theme.PolishAiCallout
 import com.example.ui.theme.PolishOutline
@@ -62,6 +68,10 @@ fun InsightsScreen(
     insight: HabitInsightEntity?,
     isAnalyzing: Boolean,
     onRunAnalysis: () -> Unit,
+    weekOverWeekSummary: WeekOverWeekSummary? = null,
+    behaviorForecast: BehaviorForecast? = null,
+    habitDimensions: List<HabitDimensionScore> = emptyList(),
+    onOpenCopilot: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val dateFormat = SimpleDateFormat("MMM d, yyyy • h:mm a", Locale.getDefault())
@@ -221,7 +231,31 @@ fun InsightsScreen(
                 }
             }
 
-            // 2. Behavioral Patterns Grid (Peak active hours, Compulsive score, Productivity trend)
+            // 2. Week-Over-Week Dynamics (Calculated Averages & Shift)
+            if (weekOverWeekSummary != null) {
+                item {
+                    WeekOverWeekComparisonCard(summary = weekOverWeekSummary)
+                }
+            }
+
+            // 3. 5-Pillar Holistic Equilibrium Radar Chart
+            if (habitDimensions.isNotEmpty()) {
+                item {
+                    HabitDimensionsRadarCard(dimensions = habitDimensions)
+                }
+            }
+
+            // 4. Behavioral Forecasting & Bedtime Doomscroll Predictor
+            if (behaviorForecast != null) {
+                item {
+                    BehaviorForecastCard(
+                        forecast = behaviorForecast,
+                        onOpenCopilot = onOpenCopilot
+                    )
+                }
+            }
+
+            // 5. Behavioral Patterns Grid (Peak active hours, Compulsive score, Productivity trend)
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     // Peak Time
