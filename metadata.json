@@ -1,0 +1,6 @@
+{
+  "name": "Digital Habits",
+  "description": "AI-powered Digital Habits and Insights Tracker analyzing app usage, notifications, time-of-day patterns, and recommendations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
