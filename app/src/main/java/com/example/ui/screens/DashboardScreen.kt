@@ -59,9 +59,12 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.model.AppNotificationFrequencyStat
+import com.example.data.model.DayTrendData
 import com.example.data.model.ProactiveNudge
 import com.example.data.model.UserProfileEntity
 import com.example.data.model.UserRole
+import com.example.data.model.WeeklyChartTrendsState
 import com.example.ui.components.AppUsageRowItem
 import com.example.ui.components.BehaviorForecastCard
 import com.example.ui.components.CategoryDistributionCard
@@ -75,6 +78,8 @@ import com.example.ui.components.UsageOverTimeCard
 import com.example.ui.components.UserProfileEditDialog
 import com.example.ui.components.UserProfileScheduleBanner
 import com.example.ui.components.WeekOverWeekComparisonCard
+import com.example.ui.components.WeeklyTrendsOverviewCard
+import com.example.ui.components.NotificationFrequencyLeaderboardCard
 import com.example.ui.theme.MintEmerald
 import com.example.ui.theme.PolishAiCallout
 import com.example.ui.theme.PolishLightRose
@@ -553,7 +558,26 @@ fun DashboardScreen(
             }
         }
 
-        // 7. Week-Over-Week Comparison Section (Calculated Averages & Percentage Changes)
+        // 7. Interactive Weekly Vico Chart Trends & Notification Frequency
+        item {
+            WeeklyTrendsOverviewCard(
+                weeklyTrends = state.weeklyChartTrends,
+                dailyScreenBudgetMinutes = state.userProfile?.dailyScreenTimeTargetMinutes ?: 210,
+                onOpenInsightDeepDive = onNavigateToChat
+            )
+        }
+
+        // 8. Top Disrupters & Notification Frequency Leaderboard
+        if (state.weeklyChartTrends.topNotifyingApps.isNotEmpty()) {
+            item {
+                NotificationFrequencyLeaderboardCard(
+                    apps = state.weeklyChartTrends.topNotifyingApps,
+                    totalWeeklyNotifications = state.weeklyChartTrends.totalWeeklyNotifications
+                )
+            }
+        }
+
+        // 9. Week-Over-Week Comparison Section (Calculated Averages & Percentage Changes)
         item {
             WeekOverWeekComparisonCard(summary = state.weekOverWeekSummary)
         }

@@ -307,3 +307,49 @@ data class HabitDimensionScore(
     val statusColorHex: String
 )
 
+data class DayTrendData(
+    val dateStr: String,
+    val dayName: String, // "Mon", "Tue", "Wed", etc.
+    val fullDateLabel: String, // "Aug 28"
+    val screenTimeMinutes: Int,
+    val notificationCount: Int,
+    val openCount: Int,
+    val compulsiveOpens: Int,
+    val socialMinutes: Int,
+    val productivityMinutes: Int,
+    val entertainmentMinutes: Int,
+    val otherMinutes: Int,
+    val topApp: String,
+    val topAppMinutes: Int,
+    val topNotifyingApp: String,
+    val topNotifyingAppCount: Int,
+    val isToday: Boolean = false
+)
+
+data class AppNotificationFrequencyStat(
+    val appName: String,
+    val packageName: String,
+    val category: String,
+    val totalNotifications: Int,
+    val percentOfTotal: Int,
+    val openConversionRate: Float,
+    val dailyCounts: List<Int> = emptyList()
+)
+
+data class WeeklyChartTrendsState(
+    val dayTrends: List<DayTrendData> = emptyList(),
+    val totalWeeklyScreenTimeMinutes: Int = 0,
+    val avgDailyScreenTimeMinutes: Int = 0,
+    val totalWeeklyNotifications: Int = 0,
+    val avgDailyNotifications: Int = 0,
+    val peakNotificationDay: String = "",
+    val peakNotificationHourRange: String = "7:00 PM - 9:00 PM",
+    val peakNotificationCount: Int = 0,
+    val topNotifyingApps: List<AppNotificationFrequencyStat> = emptyList(),
+    val notificationToOpenConversionRate: Int = 42,
+    val screenTimeVersusNotificationInsight: String = "",
+    val weeklyScreenTimeTrendDeltaPct: Float = 0f,
+    val weeklyNotificationTrendDeltaPct: Float = 0f
+)
+
+

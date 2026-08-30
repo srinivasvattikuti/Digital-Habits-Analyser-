@@ -46,9 +46,12 @@ import com.example.data.model.BehaviorForecast
 import com.example.data.model.HabitDimensionScore
 import com.example.data.model.HabitInsightEntity
 import com.example.data.model.WeekOverWeekSummary
+import com.example.data.model.WeeklyChartTrendsState
 import com.example.ui.components.BehaviorForecastCard
 import com.example.ui.components.HabitDimensionsRadarCard
 import com.example.ui.components.WeekOverWeekComparisonCard
+import com.example.ui.components.WeeklyTrendsOverviewCard
+import com.example.ui.components.NotificationFrequencyLeaderboardCard
 import com.example.ui.theme.MintEmerald
 import com.example.ui.theme.PolishAiCallout
 import com.example.ui.theme.PolishOutline
@@ -71,6 +74,8 @@ fun InsightsScreen(
     weekOverWeekSummary: WeekOverWeekSummary? = null,
     behaviorForecast: BehaviorForecast? = null,
     habitDimensions: List<HabitDimensionScore> = emptyList(),
+    weeklyTrends: WeeklyChartTrendsState = WeeklyChartTrendsState(),
+    dailyScreenBudgetMinutes: Int = 210,
     onOpenCopilot: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -231,7 +236,27 @@ fun InsightsScreen(
                 }
             }
 
-            // 2. Week-Over-Week Dynamics (Calculated Averages & Shift)
+            // 2. Weekly Vico Trends & Notification Interruption Engine
+            if (weeklyTrends.dayTrends.isNotEmpty()) {
+                item {
+                    WeeklyTrendsOverviewCard(
+                        weeklyTrends = weeklyTrends,
+                        dailyScreenBudgetMinutes = dailyScreenBudgetMinutes,
+                        onOpenInsightDeepDive = onOpenCopilot
+                    )
+                }
+
+                if (weeklyTrends.topNotifyingApps.isNotEmpty()) {
+                    item {
+                        NotificationFrequencyLeaderboardCard(
+                            apps = weeklyTrends.topNotifyingApps,
+                            totalWeeklyNotifications = weeklyTrends.totalWeeklyNotifications
+                        )
+                    }
+                }
+            }
+
+            // 2b. Week-Over-Week Dynamics (Calculated Averages & Shift)
             if (weekOverWeekSummary != null) {
                 item {
                     WeekOverWeekComparisonCard(summary = weekOverWeekSummary)

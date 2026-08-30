@@ -183,6 +183,8 @@ fun HabitTrackerApp(viewModel: HabitTrackerViewModel) {
                         weekOverWeekSummary = dashboardState.weekOverWeekSummary,
                         behaviorForecast = dashboardState.behaviorForecast,
                         habitDimensions = dashboardState.habitDimensions,
+                        weeklyTrends = dashboardState.weeklyChartTrends,
+                        dailyScreenBudgetMinutes = dashboardState.userProfile?.dailyScreenTimeTargetMinutes ?: 210,
                         onOpenCopilot = { currentDestination = HabitDestination.ASK_AI }
                     )
                     HabitDestination.RECOMMENDATIONS -> RecommendationsScreen(

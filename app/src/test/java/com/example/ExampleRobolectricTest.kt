@@ -38,4 +38,19 @@ class ExampleRobolectricTest {
         val chatAnswer = repository.sendChatMessage("Why am I using this app so much at night?")
         assertTrue("AI chat answer should be generated", chatAnswer.isNotBlank())
     }
+
+    @Test
+    fun `test weekly aggregates and notification telemetry`() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val repository = HabitRepository(context)
+        repository.initializeDataIfEmpty()
+
+        val db = HabitDatabase.getDatabase(context)
+        val allAggs = db.dailyAggregateDao().getAggregatesSinceSync("2000-01-01")
+        val totalNotifs = allAggs.sumOf { it.notificationCount }
+        val totalDuration = allAggs.sumOf { it.totalDurationMs }
+
+        assertTrue("Should have notification telemetry logged", totalNotifs > 0)
+        assertTrue("Should have screen duration logged", totalDuration > 0)
+    }
 }
