@@ -24,7 +24,8 @@ sealed class AuthUiState {
     object Idle : AuthUiState()
     object Loading : AuthUiState()
     data class Success(val user: FirebaseUser) : AuthUiState()
-    data class Error(val message: String) : AuthUiState()
+    data class SuccessLocal(val userInfo: AuthUserInfo) : AuthUiState()
+    data class Error(val message: String, val isConfigurationError: Boolean = false) : AuthUiState()
 }
 
 data class AuthUserInfo(
@@ -32,7 +33,8 @@ data class AuthUserInfo(
     val email: String?,
     val displayName: String?,
     val photoUrl: String?,
-    val isAnonymous: Boolean = false
+    val isAnonymous: Boolean = false,
+    val isLocalOnly: Boolean = false
 )
 
 class FirebaseAuthManager(
@@ -64,17 +66,24 @@ class FirebaseAuthManager(
 
     private fun updateCurrentUser(user: FirebaseUser?) {
         if (user != null) {
-            _currentUser.value = AuthUserInfo(
+            val info = AuthUserInfo(
                 uid = user.uid,
                 email = user.email,
                 displayName = user.displayName ?: user.email?.substringBefore("@") ?: "Habit Explorer",
                 photoUrl = user.photoUrl?.toString(),
-                isAnonymous = user.isAnonymous
+                isAnonymous = user.isAnonymous,
+                isLocalOnly = false
             )
+            _currentUser.value = info
             _authState.value = AuthUiState.Success(user)
+            analyticsManager?.setUserId(user.uid)
         } else {
-            _currentUser.value = null
-            _authState.value = AuthUiState.Idle
+            // Keep local user if currently logged in locally
+            if (_currentUser.value?.isLocalOnly != true) {
+                _currentUser.value = null
+                _authState.value = AuthUiState.Idle
+                analyticsManager?.setUserId(null)
+            }
         }
     }
 
@@ -83,6 +92,63 @@ class FirebaseAuthManager(
 
     val currentUserId: String?
         get() = _currentUser.value?.uid
+
+    /**
+     * Translates Firebase exceptions into human-readable user explanations.
+     */
+    private fun formatAuthErrorMessage(e: Exception, action: String): Pair<String, Boolean> {
+        val raw = e.message ?: e.localizedMessage ?: "Unknown authentication error"
+        val lower = raw.lowercase()
+        return when {
+            lower.contains("configuration_not_found") || lower.contains("configuration not found") -> {
+                Pair(
+                    "Firebase Authentication 'Email/Password' provider is not enabled in Firebase Console. You can enable it in Firebase Console > Authentication > Sign-in Method, or continue using Local Account Mode below.",
+                    true
+                )
+            }
+            lower.contains("invalid_login_credentials") || lower.contains("invalid-credential") || lower.contains("wrong-password") -> {
+                Pair("Incorrect email or password. Please verify your credentials or create a new account.", false)
+            }
+            lower.contains("user-not-found") -> {
+                Pair("No account found with this email. Switch to the 'Create Account' tab to register.", false)
+            }
+            lower.contains("email-already-in-use") || lower.contains("email_exists") -> {
+                Pair("An account with this email already exists. Switch to the 'Sign In' tab.", false)
+            }
+            lower.contains("weak-password") -> {
+                Pair("Password must be at least 6 characters.", false)
+            }
+            lower.contains("invalid-email") -> {
+                Pair("Please enter a valid email address.", false)
+            }
+            lower.contains("network") || lower.contains("timeout") -> {
+                Pair("Network connection issue. Please check your connection or continue in Local Account Mode.", false)
+            }
+            else -> {
+                Pair("$action failed: $raw", false)
+            }
+        }
+    }
+
+    /**
+     * Seamlessly creates or logs in a local account on device.
+     */
+    fun signInLocalUser(email: String, displayName: String): AuthUserInfo {
+        val cleanEmail = email.trim().ifBlank { "local_user@habitflow.app" }
+        val cleanName = displayName.trim().ifBlank { cleanEmail.substringBefore("@").ifBlank { "Habit User" } }
+        val info = AuthUserInfo(
+            uid = "local_${System.currentTimeMillis()}",
+            email = cleanEmail,
+            displayName = cleanName,
+            photoUrl = null,
+            isAnonymous = false,
+            isLocalOnly = true
+        )
+        _currentUser.value = info
+        _authState.value = AuthUiState.SuccessLocal(info)
+        analyticsManager?.logAuthEvent("login", "local_mode")
+        return info
+    }
 
     suspend fun signInWithGoogle(webClientId: String = ""): Result<AuthUserInfo> = withContext(Dispatchers.IO) {
         val firebaseAuth = auth ?: return@withContext Result.failure(
@@ -95,7 +161,6 @@ class FirebaseAuthManager(
             val serverClientId = if (webClientId.isNotBlank()) {
                 webClientId
             } else {
-                // Try reading from build config or fallback client id
                 "504640700093-apps.googleusercontent.com"
             }
 
@@ -120,7 +185,8 @@ class FirebaseAuthManager(
                         uid = user.uid,
                         email = user.email,
                         displayName = user.displayName ?: googleIdTokenCredential.displayName ?: "Habit Explorer",
-                        photoUrl = user.photoUrl?.toString() ?: googleIdTokenCredential.profilePictureUri?.toString()
+                        photoUrl = user.photoUrl?.toString() ?: googleIdTokenCredential.profilePictureUri?.toString(),
+                        isLocalOnly = false
                     )
                     _currentUser.value = info
                     _authState.value = AuthUiState.Success(user)
@@ -141,18 +207,19 @@ class FirebaseAuthManager(
             analyticsManager?.recordNonFatalException(TAG, errorMsg, e)
             Result.failure(e)
         } catch (e: Exception) {
-            val errorMsg = e.localizedMessage ?: "Google Sign-In failed"
-            Log.e(TAG, "Google Sign-In error: $errorMsg", e)
-            _authState.value = AuthUiState.Error(errorMsg)
-            analyticsManager?.recordNonFatalException(TAG, errorMsg, e)
+            val (msg, isConfig) = formatAuthErrorMessage(e, "Google Sign-In")
+            Log.e(TAG, "Google Sign-In error: $msg", e)
+            _authState.value = AuthUiState.Error(msg, isConfig)
+            analyticsManager?.recordNonFatalException(TAG, msg, e)
             Result.failure(e)
         }
     }
 
     suspend fun signInWithEmail(email: String, pass: String): Result<AuthUserInfo> = withContext(Dispatchers.IO) {
-        val firebaseAuth = auth ?: return@withContext Result.failure(
-            IllegalStateException("Firebase Auth is not initialized.")
-        )
+        val firebaseAuth = auth ?: run {
+            val info = signInLocalUser(email, "")
+            return@withContext Result.success(info)
+        }
         if (email.isBlank() || pass.isBlank()) {
             _authState.value = AuthUiState.Error("Email and password cannot be blank")
             return@withContext Result.failure(IllegalArgumentException("Email and password cannot be blank"))
@@ -168,7 +235,8 @@ class FirebaseAuthManager(
                     uid = user.uid,
                     email = user.email,
                     displayName = user.displayName ?: user.email?.substringBefore("@") ?: "Habit User",
-                    photoUrl = user.photoUrl?.toString()
+                    photoUrl = user.photoUrl?.toString(),
+                    isLocalOnly = false
                 )
                 _currentUser.value = info
                 _authState.value = AuthUiState.Success(user)
@@ -179,17 +247,18 @@ class FirebaseAuthManager(
                 Result.failure(Exception("Null user after email login"))
             }
         } catch (e: Exception) {
-            val msg = e.localizedMessage ?: "Email sign-in failed"
+            val (msg, isConfig) = formatAuthErrorMessage(e, "Email sign-in")
             Log.e(TAG, "Email sign-in error: $msg", e)
-            _authState.value = AuthUiState.Error(msg)
+            _authState.value = AuthUiState.Error(msg, isConfig)
             Result.failure(e)
         }
     }
 
     suspend fun registerWithEmail(email: String, pass: String, displayName: String): Result<AuthUserInfo> = withContext(Dispatchers.IO) {
-        val firebaseAuth = auth ?: return@withContext Result.failure(
-            IllegalStateException("Firebase Auth is not initialized.")
-        )
+        val firebaseAuth = auth ?: run {
+            val info = signInLocalUser(email, displayName)
+            return@withContext Result.success(info)
+        }
         if (email.isBlank() || pass.length < 6) {
             _authState.value = AuthUiState.Error("Password must be at least 6 characters")
             return@withContext Result.failure(IllegalArgumentException("Invalid password"))
@@ -202,17 +271,22 @@ class FirebaseAuthManager(
             val user = authResult.user
             if (user != null) {
                 if (displayName.isNotBlank()) {
-                    val profileUpdate = UserProfileChangeRequest.Builder()
-                        .setDisplayName(displayName.trim())
-                        .build()
-                    user.updateProfile(profileUpdate).await()
+                    try {
+                        val profileUpdate = UserProfileChangeRequest.Builder()
+                            .setDisplayName(displayName.trim())
+                            .build()
+                        user.updateProfile(profileUpdate).await()
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Could not set display name: ${e.message}")
+                    }
                 }
 
                 val info = AuthUserInfo(
                     uid = user.uid,
                     email = user.email,
                     displayName = if (displayName.isNotBlank()) displayName.trim() else user.email?.substringBefore("@"),
-                    photoUrl = null
+                    photoUrl = null,
+                    isLocalOnly = false
                 )
                 _currentUser.value = info
                 _authState.value = AuthUiState.Success(user)
@@ -223,9 +297,9 @@ class FirebaseAuthManager(
                 Result.failure(Exception("Null user after account creation"))
             }
         } catch (e: Exception) {
-            val msg = e.localizedMessage ?: "Account creation failed"
+            val (msg, isConfig) = formatAuthErrorMessage(e, "Account creation")
             Log.e(TAG, "Account creation error: $msg", e)
-            _authState.value = AuthUiState.Error(msg)
+            _authState.value = AuthUiState.Error(msg, isConfig)
             Result.failure(e)
         }
     }
@@ -238,13 +312,20 @@ class FirebaseAuthManager(
             analyticsManager?.logAuthEvent("logout", "user_action")
         } catch (e: Exception) {
             Log.e(TAG, "Sign out error: ${e.message}")
+            _currentUser.value = null
+            _authState.value = AuthUiState.Idle
         }
     }
 
     fun clearErrorState() {
         if (_authState.value is AuthUiState.Error) {
             _authState.value = if (_currentUser.value != null) {
-                auth?.currentUser?.let { AuthUiState.Success(it) } ?: AuthUiState.Idle
+                val current = _currentUser.value!!
+                if (current.isLocalOnly) {
+                    AuthUiState.SuccessLocal(current)
+                } else {
+                    auth?.currentUser?.let { AuthUiState.Success(it) } ?: AuthUiState.Idle
+                }
             } else {
                 AuthUiState.Idle
             }

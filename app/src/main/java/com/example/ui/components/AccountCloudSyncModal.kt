@@ -102,6 +102,7 @@ fun AccountCloudSyncBottomSheet(
     onSignInWithGoogle: () -> Unit,
     onSignInWithEmail: (email: String, password: String) -> Unit,
     onRegisterWithEmail: (email: String, password: String, displayName: String) -> Unit,
+    onSignInLocally: (email: String, displayName: String) -> Unit = { _, _ -> },
     onSignOut: () -> Unit,
     onBackupToCloud: () -> Unit,
     onRestoreFromCloud: () -> Unit,
@@ -148,7 +149,8 @@ fun AccountCloudSyncBottomSheet(
                         Text(
                             text = "Cloud Sync & Accounts",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = "Firebase Auth & Firestore Backup",
@@ -167,6 +169,7 @@ fun AccountCloudSyncBottomSheet(
             // Error notice if any
             if (cloudSyncError != null || authState is AuthUiState.Error) {
                 val errorMsg = cloudSyncError ?: (authState as? AuthUiState.Error)?.message ?: "An error occurred"
+                val isConfigErr = (authState as? AuthUiState.Error)?.isConfigurationError == true
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
                     shape = RoundedCornerShape(12.dp),
@@ -174,21 +177,36 @@ fun AccountCloudSyncBottomSheet(
                         .fillMaxWidth()
                         .padding(bottom = 12.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ErrorOutline,
-                            contentDescription = "Error",
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = errorMsg,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ErrorOutline,
+                                contentDescription = "Error",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = errorMsg,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = { onSignInLocally("local_user@habitflow.app", "Habit Explorer") },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Continue with Local Account Mode", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
                     }
                 }
             }
@@ -210,7 +228,8 @@ fun AccountCloudSyncBottomSheet(
                     authState = authState,
                     onSignInWithGoogle = onSignInWithGoogle,
                     onSignInWithEmail = onSignInWithEmail,
-                    onRegisterWithEmail = onRegisterWithEmail
+                    onRegisterWithEmail = onRegisterWithEmail,
+                    onSignInLocally = onSignInLocally
                 )
             }
 
@@ -386,6 +405,7 @@ fun UnauthenticatedAuthCard(
     onSignInWithGoogle: () -> Unit,
     onSignInWithEmail: (email: String, password: String) -> Unit,
     onRegisterWithEmail: (email: String, password: String, displayName: String) -> Unit,
+    onSignInLocally: (email: String, displayName: String) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
@@ -458,6 +478,16 @@ fun UnauthenticatedAuthCard(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Sign In with Google", fontWeight = FontWeight.Bold)
                     }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedButton(
+                    onClick = { onSignInLocally(email, displayName) },
+                    modifier = Modifier.fillMaxWidth().height(42.dp),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Continue in Local Mode (Offline)", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                 }
             } else {
                 // Email/Password Tab
@@ -543,15 +573,32 @@ fun UnauthenticatedAuthCard(
 
                 Spacer(modifier = Modifier.height(6.dp))
 
-                TextButton(
-                    onClick = { isRegisterMode = !isRegisterMode },
-                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = if (isRegisterMode) "Already have an account? Sign In" else "New user? Create an account",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    TextButton(
+                        onClick = { isRegisterMode = !isRegisterMode }
+                    ) {
+                        Text(
+                            text = if (isRegisterMode) "Sign In" else "Create Account",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    TextButton(
+                        onClick = { onSignInLocally(email, displayName) }
+                    ) {
+                        Text(
+                            text = "Continue Offline",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }

@@ -28,11 +28,11 @@ private val DarkColorScheme = darkColorScheme(
     tertiary = PolishRecoContainer,
     onTertiary = PolishOnReco,
     background = PolishDarkBackground,
-    onBackground = Color(0xFFECE0E0),
+    onBackground = Color(0xFFF3EAEB),
     surface = PolishDarkSurface,
-    onSurface = Color(0xFFECE0E0),
+    onSurface = Color(0xFFF3EAEB),
     surfaceVariant = PolishDarkSurfaceVariant,
-    onSurfaceVariant = Color(0xFFD8C2C2),
+    onSurfaceVariant = Color(0xFFE2CECF),
     outline = PolishDarkOutline
 )
 
@@ -54,7 +54,7 @@ private val LightColorScheme = lightColorScheme(
     surface = PolishSurface,
     onSurface = PolishTextPrimary,
     surfaceVariant = PolishSurfaceVariant,
-    onSurfaceVariant = PolishTextMuted,
+    onSurfaceVariant = PolishTextSecondary,
     outline = PolishOutline
 )
 

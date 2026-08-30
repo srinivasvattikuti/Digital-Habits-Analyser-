@@ -53,4 +53,18 @@ class ExampleRobolectricTest {
         assertTrue("Should have notification telemetry logged", totalNotifs > 0)
         assertTrue("Should have screen duration logged", totalDuration > 0)
     }
+
+    @Test
+    fun `test analytics and sync manager initial state`() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val repository = HabitRepository(context)
+
+        // Verify analytics events do not crash without google-services.json
+        repository.analyticsManager.logScreenView("DASHBOARD")
+        repository.analyticsManager.logGoalUpdated("goal_1", "MAX_LIMIT", 45)
+        repository.analyticsManager.recordNonFatalException("TestTag", "Sample diagnostic event")
+
+        assertNotNull("Auth manager should be initialized", repository.authManager)
+        assertNotNull("Firestore sync manager should be initialized", repository.firestoreSync)
+    }
 }

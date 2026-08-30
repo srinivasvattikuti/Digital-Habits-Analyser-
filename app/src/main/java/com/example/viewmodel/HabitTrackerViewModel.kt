@@ -503,6 +503,27 @@ class HabitTrackerViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
+    fun signInLocally(email: String, displayName: String) {
+        val user = repository.authManager.signInLocalUser(email, displayName)
+        _statusMessage.value = "Welcome, ${user.displayName} (Local Mode)!"
+        viewModelScope.launch {
+            val existing = repository.getUserProfileSync()
+            val finalName = if (displayName.isNotBlank()) {
+                displayName
+            } else if (email.isNotBlank()) {
+                email.substringBefore("@").replaceFirstChar { it.uppercase() }
+            } else {
+                "Habit Explorer"
+            }
+            repository.saveUserProfile(
+                existing.copy(
+                    name = finalName,
+                    updatedAt = System.currentTimeMillis()
+                )
+            )
+        }
+    }
+
     fun registerWithEmail(email: String, pass: String, displayName: String) {
         viewModelScope.launch {
             _statusMessage.value = "Creating Firebase account..."
@@ -545,6 +566,10 @@ class HabitTrackerViewModel(application: Application) : AndroidViewModel(applica
                 _statusMessage.value = "Restore failed: ${result.exceptionOrNull()?.localizedMessage}"
             }
         }
+    }
+
+    fun logScreenView(screenName: String) {
+        repository.analyticsManager.logScreenView(screenName)
     }
 
     fun clearAuthError() {
