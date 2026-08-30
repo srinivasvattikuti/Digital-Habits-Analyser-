@@ -56,6 +56,9 @@ interface DailyAggregateDao {
     @Query("SELECT * FROM daily_aggregates ORDER BY dateStr DESC, totalDurationMs DESC")
     fun getAllAggregates(): Flow<List<DailyAggregateEntity>>
 
+    @Query("SELECT * FROM daily_aggregates ORDER BY dateStr DESC")
+    suspend fun getAllAggregatesSync(): List<DailyAggregateEntity>
+
     @Query("SELECT * FROM daily_aggregates WHERE dateStr = :dateStr ORDER BY totalDurationMs DESC")
     fun getAggregatesForDate(dateStr: String): Flow<List<DailyAggregateEntity>>
 
@@ -83,8 +86,14 @@ interface HabitInsightDao {
     @Query("SELECT * FROM habit_insights ORDER BY timestamp DESC")
     fun getAllInsights(): Flow<List<HabitInsightEntity>>
 
+    @Query("SELECT * FROM habit_insights ORDER BY timestamp DESC")
+    suspend fun getAllInsightsSync(): List<HabitInsightEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertInsight(insight: HabitInsightEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertInsights(insights: List<HabitInsightEntity>)
 
     @Query("DELETE FROM habit_insights")
     suspend fun clearAll()
@@ -95,8 +104,14 @@ interface ChatMessageDao {
     @Query("SELECT * FROM chat_messages ORDER BY timestamp ASC")
     fun getAllMessages(): Flow<List<ChatMessageEntity>>
 
+    @Query("SELECT * FROM chat_messages ORDER BY timestamp ASC")
+    suspend fun getAllMessagesSync(): List<ChatMessageEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessage(message: ChatMessageEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMessages(messages: List<ChatMessageEntity>)
 
     @Query("DELETE FROM chat_messages")
     suspend fun clearAll()

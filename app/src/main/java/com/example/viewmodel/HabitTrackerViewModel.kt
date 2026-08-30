@@ -6,6 +6,10 @@ import android.net.Uri
 import android.provider.Settings
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.data.firebase.AuthUiState
+import com.example.data.firebase.AuthUserInfo
+import com.example.data.firebase.CloudSyncStatus
+import com.example.data.firebase.SyncSummary
 import com.example.data.model.AppCategory
 import com.example.data.model.AppInfoEntity
 import com.example.data.model.AppNotificationFrequencyStat
@@ -103,6 +107,12 @@ data class DashboardUiState(
     val habitDimensions: List<HabitDimensionScore> = emptyList(),
     val latestInsight: HabitInsightEntity? = null,
     val recommendations: List<AppRecommendationEntity> = emptyList(),
+    val authUser: AuthUserInfo? = null,
+    val authState: AuthUiState = AuthUiState.Idle,
+    val cloudSyncStatus: CloudSyncStatus = CloudSyncStatus.IDLE,
+    val lastCloudSyncTimestamp: Long? = null,
+    val lastSyncSummary: SyncSummary? = null,
+    val cloudSyncError: String? = null,
     val isSyncing: Boolean = false,
     val isAnalyzing: Boolean = false,
     val hasUsageAccess: Boolean = false,
@@ -164,7 +174,13 @@ class HabitTrackerViewModel(application: Application) : AndroidViewModel(applica
         _isSyncing,
         _isAnalyzing,
         _isChatLoading,
-        _statusMessage
+        _statusMessage,
+        repository.authManager.currentUser,
+        repository.authManager.authState,
+        repository.firestoreSync.syncStatus,
+        repository.firestoreSync.lastSyncTimestamp,
+        repository.firestoreSync.lastSyncSummary,
+        repository.firestoreSync.syncErrorMessage
     ) { args ->
         val filter = args[0] as DateFilter
         @Suppress("UNCHECKED_CAST")
@@ -181,6 +197,12 @@ class HabitTrackerViewModel(application: Application) : AndroidViewModel(applica
         val analyzing = args[8] as Boolean
         val chatLoading = args[9] as Boolean
         val statusMsg = args[10] as? String
+        val authUser = args[11] as? AuthUserInfo
+        val authState = args[12] as AuthUiState
+        val syncStatus = args[13] as CloudSyncStatus
+        val lastSyncTimestamp = args[14] as? Long
+        val lastSyncSummary = args[15] as? SyncSummary
+        val syncErrorMsg = args[16] as? String
 
         // Compute startDate string for current filter
         val cal = Calendar.getInstance()
@@ -335,6 +357,12 @@ class HabitTrackerViewModel(application: Application) : AndroidViewModel(applica
             habitDimensions = habitDimensions,
             latestInsight = insight,
             recommendations = recs,
+            authUser = authUser,
+            authState = authState,
+            cloudSyncStatus = syncStatus,
+            lastCloudSyncTimestamp = lastSyncTimestamp,
+            lastSyncSummary = lastSyncSummary,
+            cloudSyncError = syncErrorMsg,
             isSyncing = syncing,
             isAnalyzing = analyzing,
             hasUsageAccess = hasUsage,
@@ -439,6 +467,92 @@ class HabitTrackerViewModel(application: Application) : AndroidViewModel(applica
 
     fun clearStatusMessage() {
         _statusMessage.value = null
+    }
+
+    // ==========================================
+    // FIREBASE AUTHENTICATION & CLOUD FIRESTORE SYNC
+    // ==========================================
+
+    fun signInWithGoogle(webClientId: String = "") {
+        viewModelScope.launch {
+            _statusMessage.value = "Authenticating with Google..."
+            val result = repository.authManager.signInWithGoogle(webClientId)
+            if (result.isSuccess) {
+                val user = result.getOrNull()
+                _statusMessage.value = "Signed in as ${user?.displayName ?: user?.email}!"
+                // Automatically backup / sync on successful login
+                backupToCloud()
+            } else {
+                val err = result.exceptionOrNull()?.localizedMessage ?: "Google Sign-In failed"
+                _statusMessage.value = "Sign-in notice: $err"
+            }
+        }
+    }
+
+    fun signInWithEmail(email: String, pass: String) {
+        viewModelScope.launch {
+            _statusMessage.value = "Signing in..."
+            val result = repository.authManager.signInWithEmail(email, pass)
+            if (result.isSuccess) {
+                val user = result.getOrNull()
+                _statusMessage.value = "Welcome back, ${user?.displayName}!"
+                backupToCloud()
+            } else {
+                _statusMessage.value = result.exceptionOrNull()?.localizedMessage ?: "Sign-in failed"
+            }
+        }
+    }
+
+    fun registerWithEmail(email: String, pass: String, displayName: String) {
+        viewModelScope.launch {
+            _statusMessage.value = "Creating Firebase account..."
+            val result = repository.authManager.registerWithEmail(email, pass, displayName)
+            if (result.isSuccess) {
+                _statusMessage.value = "Account created & logged in!"
+                backupToCloud()
+            } else {
+                _statusMessage.value = result.exceptionOrNull()?.localizedMessage ?: "Registration failed"
+            }
+        }
+    }
+
+    fun signOut() {
+        repository.authManager.signOut()
+        _statusMessage.value = "Signed out of Firebase account."
+    }
+
+    fun backupToCloud() {
+        viewModelScope.launch {
+            _statusMessage.value = "Backing up local habit telemetry to Cloud Firestore..."
+            val result = repository.backupToCloud()
+            if (result.isSuccess) {
+                val summary = result.getOrNull()
+                _statusMessage.value = "Cloud Backup synced (${summary?.aggregatesCount ?: 0} records, ${summary?.goalsCount ?: 0} goals)!"
+            } else {
+                _statusMessage.value = "Cloud backup: ${result.exceptionOrNull()?.localizedMessage}"
+            }
+        }
+    }
+
+    fun restoreFromCloud() {
+        viewModelScope.launch {
+            _statusMessage.value = "Restoring data from Cloud Firestore..."
+            val result = repository.restoreFromCloud()
+            if (result.isSuccess) {
+                val summary = result.getOrNull()
+                _statusMessage.value = "Cloud restore complete! Restored ${summary?.aggregatesCount ?: 0} records."
+            } else {
+                _statusMessage.value = "Restore failed: ${result.exceptionOrNull()?.localizedMessage}"
+            }
+        }
+    }
+
+    fun clearAuthError() {
+        repository.authManager.clearErrorState()
+    }
+
+    fun clearSyncError() {
+        repository.firestoreSync.clearStatus()
     }
 
     fun openUsageSettings() {

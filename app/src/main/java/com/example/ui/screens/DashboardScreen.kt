@@ -65,13 +65,16 @@ import com.example.data.model.ProactiveNudge
 import com.example.data.model.UserProfileEntity
 import com.example.data.model.UserRole
 import com.example.data.model.WeeklyChartTrendsState
+import com.example.ui.components.AccountCloudSyncBottomSheet
 import com.example.ui.components.AppUsageRowItem
 import com.example.ui.components.BehaviorForecastCard
 import com.example.ui.components.CategoryDistributionCard
+import com.example.ui.components.CloudStatusIndicatorChip
 import com.example.ui.components.CompulsiveVsIntentionalGaugeCard
 import com.example.ui.components.HabitDimensionsRadarCard
 import com.example.ui.components.HourlyUsageHeatmapCard
 import com.example.ui.components.InteractiveHabitGoalsCard
+import com.example.ui.components.NotificationFrequencyLeaderboardCard
 import com.example.ui.components.ProactiveNudgesSection
 import com.example.ui.components.SummaryMetricCard
 import com.example.ui.components.UsageOverTimeCard
@@ -79,7 +82,9 @@ import com.example.ui.components.UserProfileEditDialog
 import com.example.ui.components.UserProfileScheduleBanner
 import com.example.ui.components.WeekOverWeekComparisonCard
 import com.example.ui.components.WeeklyTrendsOverviewCard
-import com.example.ui.components.NotificationFrequencyLeaderboardCard
+import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.CloudSync
+import androidx.compose.material.icons.outlined.Cloud
 import com.example.ui.theme.MintEmerald
 import com.example.ui.theme.PolishAiCallout
 import com.example.ui.theme.PolishLightRose
@@ -115,10 +120,17 @@ fun DashboardScreen(
     onToggleGoal: (String, Boolean) -> Unit = { _, _ -> },
     onNudgeAction: (ProactiveNudge) -> Unit = {},
     onAskAboutHour: ((Int) -> Unit)? = null,
+    onSignInWithGoogle: () -> Unit = {},
+    onSignInWithEmail: (String, String) -> Unit = { _, _ -> },
+    onRegisterWithEmail: (String, String, String) -> Unit = { _, _, _ -> },
+    onSignOut: () -> Unit = {},
+    onBackupToCloud: () -> Unit = {},
+    onRestoreFromCloud: () -> Unit = {},
     onDismissStatus: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showProfileDialog by remember { mutableStateOf(false) }
+    var showCloudSyncSheet by remember { mutableStateOf(false) }
 
     if (showProfileDialog) {
         UserProfileEditDialog(
@@ -130,6 +142,24 @@ fun DashboardScreen(
             onApplyRolePreset = { role ->
                 onApplyRolePreset(role)
             }
+        )
+    }
+
+    if (showCloudSyncSheet) {
+        AccountCloudSyncBottomSheet(
+            authUser = state.authUser,
+            authState = state.authState,
+            cloudSyncStatus = state.cloudSyncStatus,
+            lastSyncTimestamp = state.lastCloudSyncTimestamp,
+            lastSyncSummary = state.lastSyncSummary,
+            cloudSyncError = state.cloudSyncError,
+            onSignInWithGoogle = onSignInWithGoogle,
+            onSignInWithEmail = onSignInWithEmail,
+            onRegisterWithEmail = onRegisterWithEmail,
+            onSignOut = onSignOut,
+            onBackupToCloud = onBackupToCloud,
+            onRestoreFromCloud = onRestoreFromCloud,
+            onDismiss = { showCloudSyncSheet = false }
         )
     }
 
@@ -171,6 +201,33 @@ fun DashboardScreen(
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Firebase Cloud Sync & Account Button
+                    IconButton(
+                        onClick = { showCloudSyncSheet = true },
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (state.authUser != null) PolishPrimaryContainer else PolishSurfaceVariant
+                            )
+                            .testTag("header_cloud_sync_button")
+                    ) {
+                        if (state.cloudSyncStatus == com.example.data.firebase.CloudSyncStatus.SYNCING) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                                color = PolishWineDark
+                            )
+                        } else {
+                            Icon(
+                                imageVector = if (state.authUser != null) Icons.Default.CloudDone else Icons.Outlined.Cloud,
+                                contentDescription = "Firebase Cloud & Account",
+                                tint = if (state.authUser != null) PolishWineDark else PolishTextSecondary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+
                     IconButton(
                         onClick = { showProfileDialog = true },
                         modifier = Modifier

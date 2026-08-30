@@ -157,6 +157,12 @@ fun HabitTrackerApp(viewModel: HabitTrackerViewModel) {
                         onApplyRolePreset = viewModel::applyRolePreset,
                         onUpdateGoalTarget = viewModel::updateGoalTarget,
                         onToggleGoal = viewModel::toggleGoalEnabled,
+                        onSignInWithGoogle = viewModel::signInWithGoogle,
+                        onSignInWithEmail = viewModel::signInWithEmail,
+                        onRegisterWithEmail = viewModel::registerWithEmail,
+                        onSignOut = viewModel::signOut,
+                        onBackupToCloud = viewModel::backupToCloud,
+                        onRestoreFromCloud = viewModel::restoreFromCloud,
                         onNudgeAction = { nudge ->
                             viewModel.sendChatMessage("How can I act on this habit recommendation: '${nudge.title} - ${nudge.message}'?")
                             currentDestination = HabitDestination.ASK_AI
