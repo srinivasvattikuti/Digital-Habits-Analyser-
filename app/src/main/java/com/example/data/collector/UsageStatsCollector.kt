@@ -2,6 +2,7 @@ package com.example.data.collector
 
 import android.app.AppOpsManager
 import android.app.usage.UsageEvents
+import android.app.usage.UsageStats
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
@@ -42,7 +43,17 @@ class UsageStatsCollector(private val context: Context) {
                 context.packageName
             )
         }
-        return mode == AppOpsManager.MODE_ALLOWED
+        if (mode == AppOpsManager.MODE_ALLOWED) return true
+
+        // Fallback: Test query with UsageStatsManager
+        return try {
+            val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
+            val now = System.currentTimeMillis()
+            val stats = usageStatsManager?.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, now - 1000 * 60 * 60 * 24, now)
+            !stats.isNullOrEmpty()
+        } catch (e: Exception) {
+            false
+        }
     }
 
     suspend fun collectInstalledApps(): List<AppInfoEntity> = withContext(Dispatchers.IO) {
@@ -52,28 +63,31 @@ class UsageStatsCollector(private val context: Context) {
         }
         val resolveInfos = pm.queryIntentActivities(mainIntent, 0)
         val appList = mutableListOf<AppInfoEntity>()
+        val seenPackages = mutableSetOf<String>()
 
         for (resolveInfo in resolveInfos) {
             val pkg = resolveInfo.activityInfo.packageName
-            val appName = resolveInfo.loadLabel(pm).toString()
-            val isSystem = try {
-                val appInfo = pm.getApplicationInfo(pkg, 0)
-                (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
-            } catch (e: Exception) {
-                false
-            }
-            val category = AppCategory.fromPackage(pkg, appName)
-            val iconColor = getAppColorHex(category)
+            if (seenPackages.add(pkg)) {
+                val appName = resolveInfo.loadLabel(pm).toString()
+                val isSystem = try {
+                    val appInfo = pm.getApplicationInfo(pkg, 0)
+                    (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
+                } catch (e: Exception) {
+                    false
+                }
+                val category = AppCategory.fromPackage(pkg, appName)
+                val iconColor = getAppColorHex(category)
 
-            appList.add(
-                AppInfoEntity(
-                    packageName = pkg,
-                    appName = appName,
-                    category = category.name,
-                    isSystemApp = isSystem,
-                    iconColorHex = iconColor
+                appList.add(
+                    AppInfoEntity(
+                        packageName = pkg,
+                        appName = appName,
+                        category = category.name,
+                        isSystemApp = isSystem,
+                        iconColorHex = iconColor
+                    )
                 )
-            )
+            }
         }
 
         if (appList.isNotEmpty()) {
@@ -82,7 +96,7 @@ class UsageStatsCollector(private val context: Context) {
         appList
     }
 
-    suspend fun collectUsageEventsAndAggregates(daysBack: Int = 1): Boolean = withContext(Dispatchers.IO) {
+    suspend fun collectUsageEventsAndAggregates(daysBack: Int = 7): Boolean = withContext(Dispatchers.IO) {
         if (!hasUsageStatsPermission()) return@withContext false
 
         val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
@@ -96,100 +110,149 @@ class UsageStatsCollector(private val context: Context) {
         calendar.set(Calendar.SECOND, 0)
         val startTime = calendar.timeInMillis
 
-        val events = usageStatsManager.queryEvents(startTime, endTime)
-        val eventObj = UsageEvents.Event()
-
-        val parsedEvents = mutableListOf<UsageEventEntity>()
-        val appOpenTimestamps = mutableMapOf<String, Long>() // pkg -> lastResumeTime
-        val aggregateMap = mutableMapOf<String, DailyAggregateAccumulator>()
-
         val pm = context.packageManager
+        val aggregateMap = mutableMapOf<String, DailyAggregateAccumulator>()
+        val parsedEvents = mutableListOf<UsageEventEntity>()
 
-        while (events.hasNextEvent()) {
-            events.getNextEvent(eventObj)
-            val pkg = eventObj.packageName ?: continue
-            val time = eventObj.timeStamp
+        // 1. Process fine-grained UsageEvents
+        try {
+            val events = usageStatsManager.queryEvents(startTime, endTime)
+            val eventObj = UsageEvents.Event()
+            val appOpenTimestamps = mutableMapOf<String, Long>()
 
-            val eventCal = Calendar.getInstance().apply { timeInMillis = time }
-            val hour = eventCal.get(Calendar.HOUR_OF_DAY)
-            val dayOfWeek = eventCal.get(Calendar.DAY_OF_WEEK)
-            val dateStr = dateFormat.format(Date(time))
-            val aggKey = "$dateStr-$pkg"
+            while (events.hasNextEvent()) {
+                events.getNextEvent(eventObj)
+                val pkg = eventObj.packageName ?: continue
+                val time = eventObj.timeStamp
 
-            val appName = try {
-                val info = pm.getApplicationInfo(pkg, 0)
-                pm.getApplicationLabel(info).toString()
-            } catch (e: Exception) {
-                pkg.substringAfterLast(".")
-            }
+                val eventCal = Calendar.getInstance().apply { timeInMillis = time }
+                val hour = eventCal.get(Calendar.HOUR_OF_DAY)
+                val dayOfWeek = eventCal.get(Calendar.DAY_OF_WEEK)
+                val dateStr = dateFormat.format(Date(time))
+                val aggKey = "$dateStr-$pkg"
 
-            val accumulator = aggregateMap.getOrPut(aggKey) {
-                DailyAggregateAccumulator(
-                    dateStr = dateStr,
-                    packageName = pkg,
-                    appName = appName,
-                    category = AppCategory.fromPackage(pkg, appName).name
-                )
-            }
+                val appName = try {
+                    val info = pm.getApplicationInfo(pkg, 0)
+                    pm.getApplicationLabel(info).toString()
+                } catch (e: Exception) {
+                    pkg.substringAfterLast(".")
+                }
 
-            val isForeground = (eventObj.eventType == UsageEvents.Event.ACTIVITY_RESUMED ||
-                    (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && eventObj.eventType == UsageEvents.Event.ACTIVITY_RESUMED))
-
-            val isBackground = (eventObj.eventType == UsageEvents.Event.ACTIVITY_PAUSED ||
-                    (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && eventObj.eventType == UsageEvents.Event.ACTIVITY_PAUSED))
-
-            if (isForeground) {
-                appOpenTimestamps[pkg] = time
-                accumulator.openCount++
-
-                parsedEvents.add(
-                    UsageEventEntity(
+                val accumulator = aggregateMap.getOrPut(aggKey) {
+                    DailyAggregateAccumulator(
+                        dateStr = dateStr,
                         packageName = pkg,
                         appName = appName,
-                        eventType = "OPEN",
-                        timestamp = time,
-                        durationMs = 0L,
-                        hourOfDay = hour,
-                        dayOfWeek = dayOfWeek,
-                        dateStr = dateStr,
-                        isCompulsiveTrigger = false
+                        category = AppCategory.fromPackage(pkg, appName).name
                     )
-                )
-            } else if (isBackground) {
-                val openTime = appOpenTimestamps[pkg]
-                if (openTime != null && time >= openTime) {
-                    val duration = time - openTime
-                    accumulator.totalDurationMs += duration
-                    val durationMin = (duration / 60000).toInt()
+                }
 
-                    when (hour) {
-                        in 5..11 -> accumulator.morningMinutes += durationMin
-                        in 12..16 -> accumulator.afternoonMinutes += durationMin
-                        in 17..21 -> accumulator.eveningMinutes += durationMin
-                        else -> accumulator.nightMinutes += durationMin
-                    }
+                val isForeground = (eventObj.eventType == UsageEvents.Event.ACTIVITY_RESUMED)
+                val isBackground = (eventObj.eventType == UsageEvents.Event.ACTIVITY_PAUSED ||
+                        eventObj.eventType == UsageEvents.Event.ACTIVITY_STOPPED)
 
-                    val isCompulsive = duration in 1..29999 // Under 30 seconds quick check
-                    if (isCompulsive) {
-                        accumulator.compulsiveOpens++
-                    }
+                if (isForeground) {
+                    appOpenTimestamps[pkg] = time
+                    accumulator.openCount++
 
                     parsedEvents.add(
                         UsageEventEntity(
                             packageName = pkg,
                             appName = appName,
-                            eventType = "SESSION",
-                            timestamp = openTime,
-                            durationMs = duration,
+                            eventType = "OPEN",
+                            timestamp = time,
+                            durationMs = 0L,
                             hourOfDay = hour,
                             dayOfWeek = dayOfWeek,
                             dateStr = dateStr,
-                            isCompulsiveTrigger = isCompulsive
+                            isCompulsiveTrigger = false
                         )
                     )
-                    appOpenTimestamps.remove(pkg)
+                } else if (isBackground) {
+                    val openTime = appOpenTimestamps[pkg]
+                    if (openTime != null && time >= openTime) {
+                        val duration = time - openTime
+                        accumulator.totalDurationMs += duration
+                        val durationMin = (duration / 60000).toInt()
+
+                        when (hour) {
+                            in 5..11 -> accumulator.morningMinutes += durationMin
+                            in 12..16 -> accumulator.afternoonMinutes += durationMin
+                            in 17..21 -> accumulator.eveningMinutes += durationMin
+                            else -> accumulator.nightMinutes += durationMin
+                        }
+
+                        val isCompulsive = duration in 1..29999 // Under 30 seconds
+                        if (isCompulsive) {
+                            accumulator.compulsiveOpens++
+                        }
+
+                        parsedEvents.add(
+                            UsageEventEntity(
+                                packageName = pkg,
+                                appName = appName,
+                                eventType = "SESSION",
+                                timestamp = openTime,
+                                durationMs = duration,
+                                hourOfDay = hour,
+                                dayOfWeek = dayOfWeek,
+                                dateStr = dateStr,
+                                isCompulsiveTrigger = isCompulsive
+                            )
+                        )
+                        appOpenTimestamps.remove(pkg)
+                    }
                 }
             }
+        } catch (e: Exception) {
+            // Handled
+        }
+
+        // 2. Query UsageStats interval daily to capture apps where events may have completed outside query range
+        try {
+            val statsList: List<UsageStats>? = usageStatsManager.queryUsageStats(
+                UsageStatsManager.INTERVAL_DAILY,
+                startTime,
+                endTime
+            )
+
+            if (!statsList.isNullOrEmpty()) {
+                for (stat in statsList) {
+                    if (stat.totalTimeInForeground <= 0) continue
+                    val pkg = stat.packageName ?: continue
+                    val dateStr = dateFormat.format(Date(stat.lastTimeUsed.coerceAtLeast(stat.firstTimeStamp)))
+                    val aggKey = "$dateStr-$pkg"
+
+                    val appName = try {
+                        val info = pm.getApplicationInfo(pkg, 0)
+                        pm.getApplicationLabel(info).toString()
+                    } catch (e: Exception) {
+                        pkg.substringAfterLast(".")
+                    }
+
+                    val accumulator = aggregateMap.getOrPut(aggKey) {
+                        DailyAggregateAccumulator(
+                            dateStr = dateStr,
+                            packageName = pkg,
+                            appName = appName,
+                            category = AppCategory.fromPackage(pkg, appName).name
+                        )
+                    }
+
+                    // If totalDurationMs is less than interval stat, supplement it
+                    if (stat.totalTimeInForeground > accumulator.totalDurationMs) {
+                        val diff = stat.totalTimeInForeground - accumulator.totalDurationMs
+                        accumulator.totalDurationMs = stat.totalTimeInForeground
+                        val diffMins = (diff / 60000).toInt()
+                        accumulator.afternoonMinutes += diffMins
+                    }
+                    if (accumulator.openCount == 0) {
+                        accumulator.openCount = 1
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            // Handled
         }
 
         if (parsedEvents.isNotEmpty()) {
@@ -223,12 +286,12 @@ class UsageStatsCollector(private val context: Context) {
 
     private fun getAppColorHex(category: AppCategory): String {
         return when (category) {
-            AppCategory.SOCIAL -> "#EC4899"
+            AppCategory.SOCIAL -> "#6366F1"
             AppCategory.PRODUCTIVITY -> "#10B981"
             AppCategory.ENTERTAINMENT -> "#8B5CF6"
             AppCategory.SHOPPING -> "#F59E0B"
             AppCategory.FINANCE -> "#06B6D4"
-            AppCategory.COMMUNICATION -> "#3B82F6"
+            AppCategory.COMMUNICATION -> "#2563EB"
             AppCategory.UTILITIES -> "#64748B"
             AppCategory.HEALTH -> "#14B8A6"
             AppCategory.GAMES -> "#EF4444"

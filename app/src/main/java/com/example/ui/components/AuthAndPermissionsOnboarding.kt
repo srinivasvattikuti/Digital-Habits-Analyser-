@@ -1,8 +1,5 @@
 package com.example.ui.components
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -37,7 +34,6 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material.icons.outlined.CheckCircleOutline
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -78,16 +74,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.firebase.AuthUiState
 import com.example.data.firebase.AuthUserInfo
-import com.example.ui.theme.MintEmerald
-import com.example.ui.theme.PolishOutline
-import com.example.ui.theme.PolishPrimary
-import com.example.ui.theme.PolishPrimaryContainer
-import com.example.ui.theme.PolishSurfaceVariant
-import com.example.ui.theme.PolishTextMuted
-import com.example.ui.theme.PolishTextPrimary
-import com.example.ui.theme.PolishTextSecondary
-import com.example.ui.theme.PolishWineDark
-import com.example.ui.theme.SunsetAmber
 
 @Composable
 fun AuthAndPermissionsOnboardingScreen(
@@ -125,7 +111,7 @@ fun AuthAndPermissionsOnboardingScreen(
                 .padding(top = 36.dp, bottom = 48.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-                    // App Branding Header
+            // App Branding Header
             Box(
                 modifier = Modifier
                     .size(68.dp)
@@ -157,7 +143,7 @@ fun AuthAndPermissionsOnboardingScreen(
             Spacer(modifier = Modifier.height(6.dp))
 
             Text(
-                text = "Smart digital habits analytics, intentional screen time tracking, and behavioral wellness coaching.",
+                text = "Real-time device usage analytics, smart intentional habit tracking, and tailored AI suggestions.",
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontSize = 14.sp,
                     lineHeight = 20.sp
@@ -176,7 +162,7 @@ fun AuthAndPermissionsOnboardingScreen(
                     .testTag("onboarding_auth_card"),
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, PolishOutline),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
@@ -205,7 +191,7 @@ fun AuthAndPermissionsOnboardingScreen(
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = if (authUser != null) "Logged in as ${authUser.displayName ?: authUser.email ?: "User"}" else "Sign in, register, or continue offline",
+                                text = if (authUser != null) "Logged in as ${authUser.displayName ?: authUser.email ?: "User"}" else "Sign in, register, or continue in device mode",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -218,8 +204,8 @@ fun AuthAndPermissionsOnboardingScreen(
                         // User Already Signed In Banner
                         Surface(
                             shape = RoundedCornerShape(12.dp),
-                            color = MintEmerald.copy(alpha = 0.12f),
-                            border = BorderStroke(1.dp, MintEmerald.copy(alpha = 0.3f)),
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
@@ -230,19 +216,19 @@ fun AuthAndPermissionsOnboardingScreen(
                                 Icon(
                                     imageVector = Icons.Default.CheckCircle,
                                     contentDescription = "Active Account",
-                                    tint = MintEmerald,
+                                    tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(22.dp)
                                 )
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = authUser.displayName ?: "Habit Explorer",
                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                        color = PolishTextPrimary
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
-                                        text = if (authUser.isLocalOnly) "Offline Local Account (Device-Only)" else (authUser.email ?: "Firebase Account"),
+                                        text = if (authUser.isLocalOnly) "Offline Local Mode (Device-Only)" else (authUser.email ?: "Firebase Account"),
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = PolishTextSecondary
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
@@ -251,12 +237,12 @@ fun AuthAndPermissionsOnboardingScreen(
                         // Authentication Tabs
                         TabRow(
                             selectedTabIndex = selectedAuthTab,
-                            containerColor = PolishSurfaceVariant,
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
                             modifier = Modifier.clip(RoundedCornerShape(12.dp)),
                             indicator = { tabPositions ->
                                 SecondaryIndicator(
                                     modifier = Modifier.tabIndicatorOffset(tabPositions[selectedAuthTab]),
-                                    color = PolishPrimary,
+                                    color = MaterialTheme.colorScheme.primary,
                                     height = 3.dp
                                 )
                             },
@@ -271,7 +257,7 @@ fun AuthAndPermissionsOnboardingScreen(
                                         style = MaterialTheme.typography.labelMedium.copy(
                                             fontWeight = if (selectedAuthTab == 0) FontWeight.Bold else FontWeight.Medium
                                         ),
-                                        color = if (selectedAuthTab == 0) PolishWineDark else PolishTextSecondary
+                                        color = if (selectedAuthTab == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             )
@@ -284,7 +270,7 @@ fun AuthAndPermissionsOnboardingScreen(
                                         style = MaterialTheme.typography.labelMedium.copy(
                                             fontWeight = if (selectedAuthTab == 1) FontWeight.Bold else FontWeight.Medium
                                         ),
-                                        color = if (selectedAuthTab == 1) PolishWineDark else PolishTextSecondary
+                                        color = if (selectedAuthTab == 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             )
@@ -292,7 +278,7 @@ fun AuthAndPermissionsOnboardingScreen(
 
                         Spacer(modifier = Modifier.height(14.dp))
 
-                        // Auth Error Alert / CONFIGURATION_NOT_FOUND handler
+                        // Auth Error Alert
                         if (authState is AuthUiState.Error) {
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
@@ -339,7 +325,7 @@ fun AuthAndPermissionsOnboardingScreen(
                                         shape = RoundedCornerShape(8.dp),
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        Text("Continue with Local Account", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        Text("Continue in Local Mode", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                     }
                                 }
                             }
@@ -352,7 +338,7 @@ fun AuthAndPermissionsOnboardingScreen(
                                     value = displayName,
                                     onValueChange = { displayName = it },
                                     label = { Text("Display Name") },
-                                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = PolishTextSecondary) },
+                                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                                     singleLine = true,
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -372,7 +358,7 @@ fun AuthAndPermissionsOnboardingScreen(
                                 value = email,
                                 onValueChange = { email = it },
                                 label = { Text("Email Address") },
-                                leadingIcon = { Icon(Icons.Default.Email, contentDescription = null, tint = PolishTextSecondary) },
+                                leadingIcon = { Icon(Icons.Default.Email, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
                                 singleLine = true,
                                 modifier = Modifier
@@ -380,10 +366,10 @@ fun AuthAndPermissionsOnboardingScreen(
                                     .testTag("onboarding_email_input"),
                                 shape = RoundedCornerShape(10.dp),
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = PolishPrimary,
-                                    unfocusedBorderColor = PolishOutline,
-                                    focusedTextColor = PolishTextPrimary,
-                                    unfocusedTextColor = PolishTextPrimary
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                                 )
                             )
 
@@ -393,13 +379,13 @@ fun AuthAndPermissionsOnboardingScreen(
                                 value = password,
                                 onValueChange = { password = it },
                                 label = { Text("Password (min 6 characters)") },
-                                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = PolishTextSecondary) },
+                                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                                 trailingIcon = {
                                     IconButton(onClick = { passwordVisible = !passwordVisible }) {
                                         Icon(
                                             imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                                             contentDescription = if (passwordVisible) "Hide password" else "Show password",
-                                            tint = PolishTextSecondary
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                 },
@@ -411,10 +397,10 @@ fun AuthAndPermissionsOnboardingScreen(
                                     .testTag("onboarding_password_input"),
                                 shape = RoundedCornerShape(10.dp),
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = PolishPrimary,
-                                    unfocusedBorderColor = PolishOutline,
-                                    focusedTextColor = PolishTextPrimary,
-                                    unfocusedTextColor = PolishTextPrimary
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                                 )
                             )
 
@@ -435,14 +421,14 @@ fun AuthAndPermissionsOnboardingScreen(
                                     .testTag("onboarding_auth_submit_btn"),
                                 shape = RoundedCornerShape(12.dp),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = PolishPrimary,
-                                    contentColor = Color.White
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
                                 )
                             ) {
                                 if (authState is AuthUiState.Loading) {
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(20.dp),
-                                        color = Color.White,
+                                        color = MaterialTheme.colorScheme.onPrimary,
                                         strokeWidth = 2.dp
                                     )
                                 } else {
@@ -465,15 +451,15 @@ fun AuthAndPermissionsOnboardingScreen(
                                     Text(
                                         text = if (isRegisterMode) "Already registered? Sign In" else "New user? Create Account",
                                         style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
-                                        color = PolishPrimary
+                                        color = MaterialTheme.colorScheme.primary
                                     )
                                 }
 
                                 TextButton(onClick = { onContinueLocally(email, displayName) }) {
                                     Text(
-                                        text = "Skip to Offline",
+                                        text = "Skip to Device Mode",
                                         style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
-                                        color = PolishTextSecondary
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
@@ -482,7 +468,7 @@ fun AuthAndPermissionsOnboardingScreen(
                             Text(
                                 text = "Use Google Identity to automatically sync daily telemetry, habit goals, and AI insights across your Android devices.",
                                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp),
-                                color = PolishTextSecondary
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
 
                             Spacer(modifier = Modifier.height(14.dp))
@@ -496,14 +482,14 @@ fun AuthAndPermissionsOnboardingScreen(
                                     .testTag("onboarding_google_signin_btn"),
                                 shape = RoundedCornerShape(12.dp),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = PolishPrimary,
-                                    contentColor = Color.White
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
                                 )
                             ) {
                                 if (authState is AuthUiState.Loading) {
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(20.dp),
-                                        color = Color.White,
+                                        color = MaterialTheme.colorScheme.onPrimary,
                                         strokeWidth = 2.dp
                                     )
                                 } else {
@@ -525,9 +511,9 @@ fun AuthAndPermissionsOnboardingScreen(
                                     .fillMaxWidth()
                                     .height(44.dp),
                                 shape = RoundedCornerShape(12.dp),
-                                border = BorderStroke(1.dp, PolishOutline)
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                             ) {
-                                Text("Continue in Local Mode (No Account)", color = PolishTextPrimary, fontWeight = FontWeight.SemiBold)
+                                Text("Continue in Local Mode (No Account)", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }
@@ -543,7 +529,7 @@ fun AuthAndPermissionsOnboardingScreen(
                     .testTag("onboarding_permissions_card"),
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, PolishOutline),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
@@ -555,13 +541,13 @@ fun AuthAndPermissionsOnboardingScreen(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(CircleShape)
-                                .background(PolishSurfaceVariant),
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Security,
                                 contentDescription = null,
-                                tint = PolishWineDark,
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(22.dp)
                             )
                         }
@@ -569,12 +555,12 @@ fun AuthAndPermissionsOnboardingScreen(
                             Text(
                                 text = "Step 2: Android Permissions",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                color = PolishTextPrimary
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
                                 text = "Required to calculate real device usage and alerts",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = PolishTextSecondary
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -608,7 +594,7 @@ fun AuthAndPermissionsOnboardingScreen(
                     // Privacy Note
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = PolishSurfaceVariant,
+                        color = MaterialTheme.colorScheme.surfaceVariant,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -619,13 +605,13 @@ fun AuthAndPermissionsOnboardingScreen(
                             Icon(
                                 imageVector = Icons.Default.Info,
                                 contentDescription = "Privacy Assurance",
-                                tint = PolishPrimary,
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(18.dp)
                             )
                             Text(
-                                text = "Your privacy is guaranteed. All raw usage events are stored on-device in local Room storage.",
+                                text = "Your privacy is guaranteed. All raw usage events and apps are processed on-device in local Room storage.",
                                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 16.sp),
-                                color = PolishTextSecondary
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -643,8 +629,8 @@ fun AuthAndPermissionsOnboardingScreen(
                     .testTag("enter_dashboard_button"),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = PolishPrimary,
-                    contentColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
                 )
             ) {
                 Text(
@@ -675,10 +661,10 @@ private fun PermissionRowItem(
 ) {
     Surface(
         shape = RoundedCornerShape(14.dp),
-        color = if (isGranted) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+        color = if (isGranted) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
         border = BorderStroke(
             1.dp,
-            if (isGranted) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f) else MaterialTheme.colorScheme.outline
+            if (isGranted) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outline
         ),
         modifier = modifier.fillMaxWidth()
     ) {
@@ -695,20 +681,20 @@ private fun PermissionRowItem(
                     Icon(
                         imageVector = icon,
                         contentDescription = title,
-                        tint = if (isGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(20.dp)
                     )
                     Text(
                         text = title,
                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                        color = PolishTextPrimary
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
 
                 // Status Badge
                 Surface(
                     shape = RoundedCornerShape(20.dp),
-                    color = if (isGranted) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+                    color = if (isGranted) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -718,13 +704,13 @@ private fun PermissionRowItem(
                         Icon(
                             imageVector = if (isGranted) Icons.Default.CheckCircle else Icons.Outlined.WarningAmber,
                             contentDescription = null,
-                            tint = if (isGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                            tint = if (isGranted) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error,
                             modifier = Modifier.size(14.dp)
                         )
                         Text(
                             text = if (isGranted) "Granted" else "Action Needed",
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 11.sp),
-                            color = if (isGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                            color = if (isGranted) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onErrorContainer
                         )
                     }
                 }
@@ -735,7 +721,7 @@ private fun PermissionRowItem(
             Text(
                 text = description,
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 16.sp),
-                color = PolishTextSecondary
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             if (!isGranted) {
@@ -752,7 +738,7 @@ private fun PermissionRowItem(
                         contentColor = MaterialTheme.colorScheme.onPrimary
                     )
                 ) {
-                    Text("Grant Permission", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text("Grant Permission in Settings", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
             }
         }

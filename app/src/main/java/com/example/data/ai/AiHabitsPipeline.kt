@@ -1,17 +1,17 @@
 package com.example.data.ai
 
 import com.example.BuildConfig
+import com.example.data.model.AppCategory
 import com.example.data.model.AppRecommendationEntity
 import com.example.data.model.ChatMessageEntity
 import com.example.data.model.DailyAggregateEntity
 import com.example.data.model.HabitInsightEntity
 import com.example.data.model.UsageEventEntity
 import com.example.data.model.UserProfileEntity
-import com.example.data.model.UserRole
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.text.SimpleDateFormat
-import java.util.Date
+import org.json.JSONArray
+import org.json.JSONObject
 import java.util.Locale
 
 class AiHabitsPipeline {
@@ -38,15 +38,25 @@ class AiHabitsPipeline {
         val eveningPct = (eveningMins * 100) / totalMinutes
         val nightPct = (nightMins * 100) / totalMinutes
 
-        // App duration rankings
+        // Real App duration rankings from device data
         val appDurations = aggregates.groupBy { it.appName }
-            .mapValues { entry -> entry.value.sumOf { it.totalDurationMs } }
+            .mapValues { entry ->
+                Triple(
+                    entry.value.first().packageName,
+                    entry.value.first().category,
+                    entry.value.sumOf { it.totalDurationMs }
+                )
+            }
             .toList()
-            .sortedByDescending { it.second }
+            .sortedByDescending { it.second.third }
 
-        val dominantAppsString = appDurations.take(5).joinToString(", ") {
-            val pct = if (totalMs > 0) (it.second * 100 / totalMs).toInt() else 0
-            "${it.first} (${pct}%)"
+        val dominantAppsString = if (appDurations.isNotEmpty()) {
+            appDurations.take(5).joinToString(", ") {
+                val pct = if (totalMs > 0) (it.second.third * 100 / totalMs).toInt() else 0
+                "${it.first} (${pct}%)"
+            }
+        } else {
+            "No device usage data recorded yet"
         }
 
         // Category breakdown
@@ -58,46 +68,38 @@ class AiHabitsPipeline {
         val roleDesc = userProfile.getRole().displayName
 
         val contextPayload = buildString {
-            appendLine("=== USER PROFILE & SCHEDULE ATTRIBUTES ===")
+            appendLine("=== USER PROFILE & SCHEDULE ===")
             appendLine("Name: ${userProfile.name}")
-            appendLine("Age: ${userProfile.age} years old | Gender: ${userProfile.gender}")
-            appendLine("Persona / Role: $roleDesc (${userProfile.occupationTitle})")
-            appendLine("Schedule Type: ${userProfile.scheduleType}")
-            appendLine("Core Focus Hours (Work / School): $focusWindowStr")
-            appendLine("Days Off / Weekends: $daysOffStr")
-            appendLine("Target Bedtime: ${userProfile.bedtimeHour}:00 | Wake Time: ${userProfile.wakeHour}:00")
-            appendLine("Daily Target Screen Limit: ${userProfile.dailyScreenTimeTargetMinutes} mins")
-            appendLine("Primary Goals: ${userProfile.primaryGoalsCsv}")
-            appendLine("Supervised / Kid Mode: ${if (userProfile.isKidMode || userProfile.age < 13) "YES (Child Friendly Mode)" else "NO"}")
+            appendLine("Age: ${userProfile.age} | Gender: ${userProfile.gender}")
+            appendLine("Role: $roleDesc (${userProfile.occupationTitle})")
+            appendLine("Focus Hours: $focusWindowStr")
+            appendLine("Days Off: $daysOffStr")
+            appendLine("Bedtime: ${userProfile.bedtimeHour}:00 | Wake: ${userProfile.wakeHour}:00")
+            appendLine("Daily Target Screen Time: ${userProfile.dailyScreenTimeTargetMinutes} mins")
+            appendLine("Child / Supervised Mode: ${if (userProfile.isKidMode || userProfile.age < 13) "YES" else "NO"}")
             appendLine()
-            appendLine("=== TELEMETRY SUMMARY FOR CONTINUOUS PIPELINE ===")
+            appendLine("=== REAL DEVICE TELEMETRY FROM DATABASE ===")
             appendLine("Total Screen Time: ${String.format(Locale.US, "%.1f", totalHours)} hours across ${aggregates.map { it.dateStr }.distinct().size} days")
-            appendLine("Total App Launches: $totalOpens (Compulsive quick checks <30s: $totalCompulsiveOpens, $compulsiveRatio%)")
-            appendLine("Dominant Apps: $dominantAppsString")
+            appendLine("Total App Launches: $totalOpens (Compulsive quick checks: $totalCompulsiveOpens, $compulsiveRatio%)")
+            appendLine("User's Real Top Apps: $dominantAppsString")
             appendLine("Time of Day Distribution:")
             appendLine("- Morning (05:00-12:00): $morningMins min ($morningPct%)")
             appendLine("- Afternoon (12:00-17:00): $afternoonMins min ($afternoonPct%)")
             appendLine("- Evening (17:00-22:00): $eveningMins min ($eveningPct%)")
             appendLine("- Late Night (22:00-05:00): $nightMins min ($nightPct%)")
             appendLine("Category Breakdown (Minutes): $categoryBreakdown")
-            appendLine("Recent Fine-Grained Events Count: ${events.size}")
+            appendLine("Real Device Open Events: ${events.size}")
         }
 
         val apiKey = BuildConfig.GEMINI_API_KEY
         if (apiKey.isNotEmpty() && apiKey != "MY_GEMINI_API_KEY") {
             try {
                 val systemPrompt = """
-                    You are the AI Behavioral Engine of a Digital Habits and Insights Tracker.
-                    Analyze this continuous time-series usage telemetry tailored to the user's specific age, role, work/school focus schedule, and days off.
-                    
-                    Key Analysis Guidelines:
-                    1. For Kids/Students (Ages < 18 or school persona): Evaluate if screen time interferes with school hours ($focusWindowStr) or bedtime (${userProfile.bedtimeHour}:00). Provide supportive, encouraging guidance with healthy boundaries.
-                    2. For Working Professionals / Adults: Assess distraction during work focus blocks ($focusWindowStr), work-life balance on days off ($daysOffStr), and late-night doomscrolling past bedtime (${userProfile.bedtimeHour}:00).
-                    3. Highlight whether recreational app launches happen during scheduled focus hours vs allowed downtime.
-                    4. Identify dominant time sinks, compulsive micro-checking, and trend shifts.
-                    5. Provide tailored, age-appropriate micro-habits and high-value app alternatives.
-                    
-                    Return your analysis clearly and concisely with markdown headings.
+                    You are the AI Behavioral Engine of a Digital Habits Tracker.
+                    Analyze this real device usage telemetry tailored to the user's specific age, role, and focus schedule ($focusWindowStr).
+                    Base all conclusions strictly on their real installed apps and recorded usage.
+                    Do not invent apps the user does not use.
+                    Provide clear, constructive habit analysis with markdown headings.
                 """.trimIndent()
 
                 val request = GeminiRequest(
@@ -105,7 +107,7 @@ class AiHabitsPipeline {
                     contents = listOf(
                         GeminiContent(
                             parts = listOf(
-                                GeminiPart("Here is the user's profile and telemetry data:\n\n$contextPayload\n\nPlease generate the comprehensive habit synthesis and actionable insights tailored to this user profile.")
+                                GeminiPart("Analyze this real user telemetry:\n\n$contextPayload\n\nProvide habit synthesis and insights.")
                             )
                         )
                     ),
@@ -124,6 +126,7 @@ class AiHabitsPipeline {
                     }
 
                     val isKid = userProfile.isKidMode || userProfile.age < 13
+                    val topAppName = appDurations.firstOrNull()?.first ?: "your primary apps"
                     val insightEntity = HabitInsightEntity(
                         timestamp = System.currentTimeMillis(),
                         periodLabel = if (isKid) "Kid-Friendly AI Synthesis" else "Personalized AI Pipeline",
@@ -131,15 +134,15 @@ class AiHabitsPipeline {
                         peakActiveHours = peakHoursDesc,
                         compulsiveScore = compulsiveRatio.coerceIn(10, 95),
                         compulsiveSummary = "$compulsiveRatio% of launches are micro-checks (<30s), primarily concentrated during $peakHoursDesc.",
-                        productivityTrend = if (categoryBreakdown["PRODUCTIVITY"] ?: 0 > 45) {
+                        productivityTrend = if ((categoryBreakdown["PRODUCTIVITY"] ?: 0) > 45) {
                             "Focus hours ($focusWindowStr) remain well-protected with solid productivity."
                         } else {
-                            "Recreational browsing is overlapping with your scheduled $focusWindowStr focus window."
+                            "Recreational app browsing ($topAppName) is active during your scheduled $focusWindowStr focus window."
                         },
                         keyTakeaway = if (isKid) {
-                            "Turn off notifications during school hours ($focusWindowStr) and wind down 30 minutes before ${userProfile.bedtimeHour}:00 PM."
+                            "Keep notifications quiet during school hours ($focusWindowStr) and put the phone to charge 30 minutes before bedtime (${userProfile.bedtimeHour}:00 PM)."
                         } else {
-                            "Shifting screen time back by 45 minutes before bedtime (${userProfile.bedtimeHour}:00) prevents reflexive scrolling and restores deep recovery."
+                            "Limiting $topAppName 45 minutes before bedtime (${userProfile.bedtimeHour}:00) prevents reflexive scrolling and promotes deep recovery."
                         },
                         fullAnalysisText = responseText,
                         isSyncedWithBackend = true
@@ -157,26 +160,27 @@ class AiHabitsPipeline {
         val peakHoursDesc = when {
             nightPct >= 30 -> "${userProfile.bedtimeHour}:00 - 01:30 (Late Night Screen Loop - ${nightPct}%)"
             eveningPct >= 35 -> "18:00 - ${userProfile.bedtimeHour}:00 (Evening Winddown - ${eveningPct}%)"
-            else -> "$focusWindowStr (Core Scheduled Focus Window - ${afternoonPct}%)"
+            else -> "$focusWindowStr (Scheduled Focus Window - ${afternoonPct}%)"
         }
 
+        val topAppName = appDurations.firstOrNull()?.first ?: "Device Apps"
         val fallbackInsight = HabitInsightEntity(
             timestamp = System.currentTimeMillis(),
             periodLabel = if (isKid) "Youth Habit Pipeline" else "Tailored Habit Engine",
             dominantAppsJson = dominantAppsString,
             peakActiveHours = peakHoursDesc,
             compulsiveScore = compulsiveRatio.coerceIn(15, 85),
-            compulsiveSummary = "$compulsiveRatio% of total app launches exhibit compulsive micro-checking patterns (<30 seconds duration).",
-            productivityTrend = "Core scheduled hours ($focusWindowStr) show mixed focus, while post-${userProfile.bedtimeHour}:00 usage is driven by infinite feeds.",
-            keyTakeaway = "Setting a digital curfew at ${userProfile.bedtimeHour}:00 PM will significantly improve next-day energy and reduce reflexive unlocks.",
+            compulsiveSummary = "$compulsiveRatio% of app launches on your device exhibit rapid reflex checking patterns (<30 seconds duration).",
+            productivityTrend = "Recorded usage indicates primary engagement with $dominantAppsString.",
+            keyTakeaway = "Setting a screen wind-down 30 minutes before ${userProfile.bedtimeHour}:00 PM will reduce reflexive checking and improve sleep quality.",
             fullAnalysisText = """
                 ### Personalized Digital Habit Analysis for ${userProfile.name} ($roleDesc)
-                - **Profile Profile**: ${userProfile.age} yrs old • Schedule: $focusWindowStr • Days off: $daysOffStr
-                - **Primary Time Sink**: $dominantAppsString dominate your screen usage.
-                - **Time of Day Hotspot**: Peak usage is concentrated in $peakHoursDesc.
-                - **Compulsive Pattern**: $totalCompulsiveOpens out of $totalOpens opens were rapid impulsive checks under 30 seconds.
-                - **Focus Window Health**: Pay attention to notifications during your $focusWindowStr block.
-                - **Recommendation**: Create a screen boundary at ${userProfile.bedtimeHour}:00 PM to protect sleep.
+                - **Profile**: ${userProfile.age} yrs old • Scheduled Focus: $focusWindowStr • Days off: $daysOffStr
+                - **Top Real Apps**: $dominantAppsString
+                - **Active Usage Peak**: Peak phone interaction occurs during $peakHoursDesc.
+                - **Compulsive Ratio**: $totalCompulsiveOpens out of $totalOpens total app launches were quick checks under 30 seconds.
+                - **Focus Window Health**: Monitor distractions during your $focusWindowStr block.
+                - **Recommendation**: Create a digital curfew at ${userProfile.bedtimeHour}:00 PM to protect evening rest.
             """.trimIndent(),
             isSyncedWithBackend = true
         )
@@ -215,10 +219,10 @@ class AiHabitsPipeline {
             Target Screen Time Limit: ${userProfile.dailyScreenTimeTargetMinutes} mins
             Kid Mode: ${userProfile.isKidMode || userProfile.age < 13}
             
-            [USER'S REAL DATABASE TELEMETRY]
+            [USER'S REAL PHONE TELEMETRY]
             Total Screen Time: ${String.format(Locale.US, "%.1f", totalHours)}h
             Time-of-day distribution: $timeOfDay
-            App details:
+            Apps recorded on phone:
             $appSummaries
             Total fine-grained open events recorded: ${events.size}
         """.trimIndent()
@@ -230,9 +234,9 @@ class AiHabitsPipeline {
                 val systemPrompt = """
                     You are an empathetic, insightful Digital Wellbeing and Habit AI Assistant.
                     You are speaking directly with ${userProfile.name} (Age: ${userProfile.age}, Role: ${userProfile.getRole().displayName}).
-                    ${if (isKid) "This profile is for a student/child. Use age-appropriate, encouraging, friendly language that emphasizes healthy routines, school balance, and great sleep." else "Provide clear, practical, evidence-based productivity and habit guidance tailored to their work schedule."}
-                    Ground your responses STRICTLY in the telemetry metrics and their schedule ($focusWindowStr focus hours, days off: $daysOffStr, bedtime: ${userProfile.bedtimeHour}:00).
-                    Cite exact numbers, times of day, app names, open counts, and durations from their data.
+                    ${if (isKid) "This profile is for a student/child. Use friendly, supportive language focusing on healthy routines, school balance, and great sleep." else "Provide clear, practical, evidence-based productivity and habit guidance tailored to their work schedule."}
+                    Ground your responses STRICTLY in their real phone telemetry ($appSummaries) and schedule ($focusWindowStr focus hours, bedtime: ${userProfile.bedtimeHour}:00).
+                    Cite real app names, open counts, and minutes from their recorded phone usage.
                 """.trimIndent()
 
                 val historyParts = chatHistory.takeLast(6).map {
@@ -244,7 +248,7 @@ class AiHabitsPipeline {
 
                 val currentContent = GeminiContent(
                     parts = listOf(
-                        GeminiPart("User Profile & Telemetry Context:\n$telemetryContext\n\nUser Question: $query")
+                        GeminiPart("Real Phone Telemetry Context:\n$telemetryContext\n\nUser Question: $query")
                     ),
                     role = "user"
                 )
@@ -267,7 +271,7 @@ class AiHabitsPipeline {
             }
         }
 
-        // Local grounded answer engine tailored to profile
+        // Local grounded answer engine tailored to real data
         val lowerQuery = query.lowercase()
         return@withContext when {
             lowerQuery.contains("night") || lowerQuery.contains("late") || lowerQuery.contains("midnight") || lowerQuery.contains("bed") -> {
@@ -277,33 +281,39 @@ class AiHabitsPipeline {
                     .mapValues { it.value.sumOf { agg -> agg.nightMinutes } }
                     .toList()
                     .sortedByDescending { it.second }
-                val topNight = nightApps.take(3).joinToString(", ") { "${it.first} (${it.second}m)" }
-                "Based on your profile, your target bedtime is ${userProfile.bedtimeHour}:00. Telemetry shows you logged ${nightMins} minutes of late-night usage past 10 PM. Top late-night apps: $topNight.\n\nRecommendation for ${userProfile.name}: Setting a 'Do Not Disturb' routine 30 minutes before ${userProfile.bedtimeHour}:00 PM will help protect your sleep."
+                val topNight = if (nightApps.isNotEmpty()) {
+                    nightApps.take(3).joinToString(", ") { "${it.first} (${it.second}m)" }
+                } else {
+                    "No late-night apps detected"
+                }
+                "Based on your profile, your target bedtime is ${userProfile.bedtimeHour}:00. Real phone telemetry shows ${nightMins} minutes of usage past 10 PM. Top late-night apps: $topNight.\n\nRecommendation: Enable 'Do Not Disturb' 30 minutes before ${userProfile.bedtimeHour}:00 PM to help protect your sleep cycle."
             }
             lowerQuery.contains("work") || lowerQuery.contains("school") || lowerQuery.contains("focus") || lowerQuery.contains("class") || lowerQuery.contains("study") -> {
                 val focusMins = aggregates.sumOf { it.morningMinutes + it.afternoonMinutes }
                 val prodAggs = aggregates.filter { it.category == "PRODUCTIVITY" || it.category == "COMMUNICATION" }
                 val prodMins = prodAggs.sumOf { it.totalDurationMs } / 60000
-                "During your scheduled focus window ($focusWindowStr), you logged ${prodMins} minutes of productive/educational tools out of ${focusMins} total daytime minutes. Keeping notifications silent during $focusWindowStr will help prevent unintentional app checking."
+                "During your scheduled focus window ($focusWindowStr), you logged ${prodMins} minutes of productive apps out of ${focusMins} total daytime minutes on your device."
             }
             lowerQuery.contains("off") || lowerQuery.contains("weekend") || lowerQuery.contains("holiday") -> {
-                "Your configured days off are $daysOffStr. During days off, your screen time naturally relaxes, but keeping bedtime close to ${userProfile.bedtimeHour}:00 PM preserves your circadian rhythm for the start of the week."
+                "Your configured days off are $daysOffStr. During days off, your screen time naturally increases, but keeping bedtime around ${userProfile.bedtimeHour}:00 PM preserves your circadian rhythm."
             }
             lowerQuery.contains("compulsive") || lowerQuery.contains("reflex") || lowerQuery.contains("quick") || lowerQuery.contains("unlock") -> {
                 val totalOpens = aggregates.sumOf { it.openCount }
                 val compulsiveOpens = aggregates.sumOf { it.compulsiveOpens }
                 val pct = if (totalOpens > 0) (compulsiveOpens * 100 / totalOpens) else 0
-                "Your compulsive index is $pct%. Out of $totalOpens total app opens, $compulsiveOpens were brief reflex sessions lasting under 30 seconds. The most common apps for reflexive checking are Instagram, Reddit, and messaging feeds."
+                val topCompulsiveApp = aggregates.groupBy { it.appName }.maxByOrNull { it.value.sumOf { agg -> agg.compulsiveOpens } }?.key ?: "your main apps"
+                "Your compulsive checking index is $pct%. Out of $totalOpens total app opens, $compulsiveOpens were brief reflex checks under 30 seconds. The most frequent reflex-checked app is $topCompulsiveApp."
             }
             lowerQuery.contains("recommend") || lowerQuery.contains("alternative") || lowerQuery.contains("switch") || lowerQuery.contains("better") -> {
-                if (userProfile.isKidMode || userProfile.age < 13) {
-                    "Here are curated kid-friendly and study alternatives for ${userProfile.name}:\n• Learning: 'Khan Academy Kids' & 'Duolingo'\n• Mindful Reading: 'Epic! / Reading Eggs'\n• Focus: 'Forest' (grow virtual trees while doing homework)\n• Screen Boundaries: 'One Sec Kids'."
-                } else {
-                    "Based on your profile (${userProfile.occupationTitle}), here are curated alternatives to curb distraction:\n• Social: 'One Sec' (adds mindful breathing before opening feeds)\n• Deep Focus: 'Forest' & 'Obsidian' for distraction-free note taking\n• Shopping: 'Shop' for tracking packages without flash deal hooks\n• Reading: 'Matter' for curated longform articles."
-                }
+                val topApps = aggregates.groupBy { it.appName }
+                    .mapValues { it.value.sumOf { agg -> agg.totalDurationMs } }
+                    .toList().sortedByDescending { it.second }.take(3).map { it.first }
+                val topAppsStr = if (topApps.isNotEmpty()) topApps.joinToString(", ") else "your top apps"
+                "Based on your real device usage ($topAppsStr), consider adding friction pauses (e.g. 'One Sec' or daily app limits) to prevent unconscious looping during focus hours ($focusWindowStr)."
             }
             else -> {
-                "Hello ${userProfile.name}! Telemetry Overview: You've logged ${String.format(Locale.US, "%.1f", totalHours)} hours across ${aggregates.map { it.dateStr }.distinct().size} days. Schedule: $focusWindowStr • Bedtime: ${userProfile.bedtimeHour}:00. Feel free to ask: 'How is my screen time during focus hours?' or 'Am I staying off my phone before bedtime?'"
+                val topAppNames = aggregates.groupBy { it.appName }.keys.take(3).joinToString(", ")
+                "Hello ${userProfile.name}! Telemetry Overview: You've logged ${String.format(Locale.US, "%.1f", totalHours)} hours on your device (top apps: ${if (topAppNames.isNotEmpty()) topAppNames else "recorded device apps"}). Focus Hours: $focusWindowStr • Bedtime: ${userProfile.bedtimeHour}:00. Ask: 'What are my most used apps during focus hours?' or 'How is my late night phone usage?'"
             }
         }
     }
@@ -315,98 +325,159 @@ class AiHabitsPipeline {
         val list = mutableListOf<AppRecommendationEntity>()
         val isKid = userProfile.isKidMode || userProfile.age < 13
 
-        if (isKid) {
-            // Kid / Student focused recommendations
+        // Group actual apps on user's phone by usage duration
+        val topAppsOnDevice = aggregates.groupBy { it.packageName }
+            .map { (pkg, aggs) ->
+                val appName = aggs.first().appName
+                val category = aggs.first().category
+                val totalMs = aggs.sumOf { it.totalDurationMs }
+                val totalMins = (totalMs / 60000).toInt()
+                val compulsiveOpens = aggs.sumOf { it.compulsiveOpens }
+                val nightMins = aggs.sumOf { it.nightMinutes }
+                AppUsageRecord(pkg, appName, category, totalMins, compulsiveOpens, nightMins)
+            }
+            .filter { it.totalMinutes > 0 }
+            .sortedByDescending { it.totalMinutes }
+
+        // Generate tailored recommendations for the user's ACTUAL top apps
+        for (app in topAppsOnDevice.take(5)) {
+            val rec = createRecommendationForRealApp(app, isKid, userProfile)
+            if (rec != null) {
+                list.add(rec)
+            }
+        }
+
+        // If no aggregates or few items, add general mindful habits based on user role
+        if (list.isEmpty()) {
             list.add(
                 AppRecommendationEntity(
-                    targetPackageName = "com.google.android.youtube",
-                    targetAppName = "YouTube / Infinite Video",
-                    targetCategory = "Entertainment",
-                    suggestedAppName = "Khan Academy Kids & PBS KIDS",
-                    suggestedPackageName = "org.khankids.android",
-                    reason = "Substitutes algorithmically driven auto-play videos with interactive, curriculum-aligned educational games and science explorations.",
-                    efficiencyBadge = "Safe Learning Zone",
-                    keyBenefits = "• 100% Free & No Ads\n• Interactive learning games\n• Encourages creative curiosity"
-                )
-            )
-            list.add(
-                AppRecommendationEntity(
-                    targetPackageName = "com.roblox.client",
-                    targetAppName = "Roblox / Mobile Gaming",
-                    targetCategory = "Games",
-                    suggestedAppName = "Duolingo / Language Quest",
-                    suggestedPackageName = "com.duolingo",
-                    reason = "Channels game-like streak psychology into fun 5-minute language learning quests that strengthen memory and vocabulary.",
-                    efficiencyBadge = "Gamified Learning",
-                    keyBenefits = "• Fun 5-minute lessons\n• Positive streak motivation\n• Safe, wholesome community"
-                )
-            )
-            list.add(
-                AppRecommendationEntity(
-                    targetPackageName = "com.instagram.android",
-                    targetAppName = "Short Video Feeds",
-                    targetCategory = "Social",
-                    suggestedAppName = "Epic! / Digital Books Library",
-                    suggestedPackageName = "com.getepic.Epic",
-                    reason = "Replaces fast-paced short reels with richly illustrated storybooks and audiobooks that boost reading comprehension.",
-                    efficiencyBadge = "Reading Accelerator",
-                    keyBenefits = "• 40,000+ age-appropriate books\n• Audio read-to-me mode\n• Teacher approved"
-                )
-            )
-        } else {
-            // Adult / Professional recommendations
-            list.add(
-                AppRecommendationEntity(
-                    targetPackageName = "com.instagram.android",
-                    targetAppName = "Instagram / TikTok Feeds",
-                    targetCategory = "Social",
-                    suggestedAppName = "One Sec (Mindful Pause)",
-                    suggestedPackageName = "app.one.sec",
-                    reason = "Interposes an animated 2-second breathing pause before launch, breaking reflexive unlock triggers and reducing unconscious screen time by 57%.",
-                    efficiencyBadge = "Friction Nudge Engine",
-                    keyBenefits = "• Scientifically proven 57% usage drop\n• Guided micro-breathing prompts\n• Intentional unlock confirmation"
-                )
-            )
-            list.add(
-                AppRecommendationEntity(
-                    targetPackageName = "com.reddit.frontpage",
-                    targetAppName = "Reddit / Social Discussion",
-                    targetCategory = "Social & News",
-                    suggestedAppName = "Matter / Minimalist Reader",
-                    suggestedPackageName = "com.matter.reader",
-                    reason = "Converts infinite comment doomscrolling into curated, distraction-free longform reading with integrated AI audio narration.",
-                    efficiencyBadge = "Deep Reading",
-                    keyBenefits = "• Zero engagement bait algorithms\n• High-definition audio read-aloud\n• Offline markdown export"
-                )
-            )
-            list.add(
-                AppRecommendationEntity(
-                    targetPackageName = "notion.id",
-                    targetAppName = "Complex Workspace / Note Apps",
+                    targetPackageName = "com.android.system",
+                    targetAppName = "Daily Screen Time",
                     targetCategory = "Productivity",
-                    suggestedAppName = "Obsidian (Local Markdown)",
-                    suggestedPackageName = "md.obsidian",
-                    reason = "Provides lightning-fast offline markdown notes without notification badges, complex server sync delays, or context switching traps.",
-                    efficiencyBadge = "100% Offline Vault",
-                    keyBenefits = "• Instant startup speed (<100ms)\n• Local-first privacy\n• Zero background battery drain"
-                )
-            )
-            list.add(
-                AppRecommendationEntity(
-                    targetPackageName = "com.forestapp.cc",
-                    targetAppName = "Generic Timer Apps",
-                    targetCategory = "Productivity",
-                    suggestedAppName = "Forest (Focus Gamification)",
-                    suggestedPackageName = "com.forestapp.cc",
-                    reason = "Gamifies 25-minute Pomodoro focus blocks during work hours (${userProfile.focusStartHour}:00 - ${userProfile.focusEndHour}:00) by growing virtual trees that wither if you switch to distraction apps.",
-                    efficiencyBadge = "Gamified Deep Work",
-                    keyBenefits = "• Strict focus enforcement\n• Real tree planting initiatives\n• Detailed focus analytics"
+                    suggestedAppName = "Focus Mode & App Timers",
+                    suggestedPackageName = "com.google.android.apps.wellbeing",
+                    reason = "Set daily target screen limits (${userProfile.dailyScreenTimeTargetMinutes} mins) to maintain focus during ${userProfile.focusStartHour}:00 - ${userProfile.focusEndHour}:00.",
+                    efficiencyBadge = "Focus Target",
+                    keyBenefits = "• Limits distraction during focus window\n• Auto-pauses notifications\n• Preserves healthy sleep hygiene"
                 )
             )
         }
 
         return list
     }
+
+    private fun createRecommendationForRealApp(
+        app: AppUsageRecord,
+        isKid: Boolean,
+        userProfile: UserProfileEntity
+    ): AppRecommendationEntity? {
+        val cat = try { AppCategory.valueOf(app.category) } catch (e: Exception) { AppCategory.OTHER }
+
+        return when {
+            cat == AppCategory.SOCIAL || app.appName.contains("Instagram", ignoreCase = true) ||
+                    app.appName.contains("TikTok", ignoreCase = true) || app.appName.contains("Twitter", ignoreCase = true) ||
+                    app.appName.contains("Facebook", ignoreCase = true) || app.appName.contains("Snapchat", ignoreCase = true) -> {
+                if (isKid) {
+                    AppRecommendationEntity(
+                        targetPackageName = app.packageName,
+                        targetAppName = "${app.appName} (${app.totalMinutes}m)",
+                        targetCategory = "Social",
+                        suggestedAppName = "Epic! Storybooks & Duolingo",
+                        suggestedPackageName = "com.getepic.Epic",
+                        reason = "Channels ${app.totalMinutes} minutes of social browsing into engaging storybooks and language games with positive rewards.",
+                        efficiencyBadge = "Educational Upgrade",
+                        keyBenefits = "• Curriculum-safe content\n• Gamified reading streaks\n• No social media algorithms"
+                    )
+                } else {
+                    AppRecommendationEntity(
+                        targetPackageName = app.packageName,
+                        targetAppName = "${app.appName} (${app.totalMinutes}m)",
+                        targetCategory = "Social",
+                        suggestedAppName = "One Sec (Mindful Pause Interceptor)",
+                        suggestedPackageName = "app.one.sec",
+                        reason = "Adds an intentional 2-second breathing pause before opening ${app.appName}, curbing ${app.compulsiveOpens} impulsive reflex checks.",
+                        efficiencyBadge = "Friction Engine",
+                        keyBenefits = "• Proven 57% screen time reduction\n• Breaks subconscious opening loops\n• Restores deep work flow"
+                    )
+                }
+            }
+
+            cat == AppCategory.ENTERTAINMENT || app.appName.contains("YouTube", ignoreCase = true) ||
+                    app.appName.contains("Netflix", ignoreCase = true) || app.appName.contains("Twitch", ignoreCase = true) -> {
+                if (isKid) {
+                    AppRecommendationEntity(
+                        targetPackageName = app.packageName,
+                        targetAppName = "${app.appName} (${app.totalMinutes}m)",
+                        targetCategory = "Entertainment",
+                        suggestedAppName = "Khan Academy Kids & PBS KIDS",
+                        suggestedPackageName = "org.khankids.android",
+                        reason = "Replaces autoplay video algorithms on ${app.appName} with interactive, educational learning adventures.",
+                        efficiencyBadge = "Safe Learning",
+                        keyBenefits = "• 100% Free & No Ads\n• Interactive science & math\n• Safe curated library"
+                    )
+                } else {
+                    AppRecommendationEntity(
+                        targetPackageName = app.packageName,
+                        targetAppName = "${app.appName} (${app.totalMinutes}m)",
+                        targetCategory = "Entertainment",
+                        suggestedAppName = "Matter / Pocket (Curated Longform)",
+                        suggestedPackageName = "com.matter.reader",
+                        reason = "Converts ${app.totalMinutes} mins of video consumption into curated high-signal articles with audio narration.",
+                        efficiencyBadge = "High Signal Reading",
+                        keyBenefits = "• Zero engagement bait\n• Audio read-aloud mode\n• Distraction-free typography"
+                    )
+                }
+            }
+
+            cat == AppCategory.GAMES -> {
+                AppRecommendationEntity(
+                    targetPackageName = app.packageName,
+                    targetAppName = "${app.appName} (${app.totalMinutes}m)",
+                    targetCategory = "Gaming",
+                    suggestedAppName = "Elevate / Peak (Brain Training)",
+                    suggestedPackageName = "com.wonder.productivity",
+                    reason = "Directs gaming streak motivation from ${app.appName} into cognitive focus, memory, and math training.",
+                    efficiencyBadge = "Cognitive Skill Builder",
+                    keyBenefits = "• 40+ brain training games\n• Focus & memory metrics\n• 5-minute daily challenges"
+                )
+            }
+
+            app.nightMins > 20 -> {
+                AppRecommendationEntity(
+                    targetPackageName = app.packageName,
+                    targetAppName = "${app.appName} (${app.nightMins}m late-night)",
+                    targetCategory = "Late-Night Screen Time",
+                    suggestedAppName = "Bedtime Mode & Digital Curfew",
+                    suggestedPackageName = "com.google.android.apps.wellbeing",
+                    reason = "You spent ${app.nightMins} mins on ${app.appName} late at night. Setting a curfew at ${userProfile.bedtimeHour}:00 PM protects restorative sleep.",
+                    efficiencyBadge = "Sleep Protection",
+                    keyBenefits = "• Grayscale display at bedtime\n• Silences late notifications\n• Improves REM sleep recovery"
+                )
+            }
+
+            else -> {
+                AppRecommendationEntity(
+                    targetPackageName = app.packageName,
+                    targetAppName = "${app.appName} (${app.totalMinutes}m)",
+                    targetCategory = app.category,
+                    suggestedAppName = "Forest (Focus Gamification)",
+                    suggestedPackageName = "com.forestapp.cc",
+                    reason = "Keep ${app.appName} usage balanced by setting 25-minute Pomodoro sessions during focus hours (${userProfile.focusStartHour}:00 - ${userProfile.focusEndHour}:00).",
+                    efficiencyBadge = "Focus Enforcement",
+                    keyBenefits = "• Protects work blocks\n• Gamified virtual tree growth\n• Detailed session analytics"
+                )
+            }
+        }
+    }
+
+    private data class AppUsageRecord(
+        val packageName: String,
+        val appName: String,
+        val category: String,
+        val totalMinutes: Int,
+        val compulsiveOpens: Int,
+        val nightMins: Int
+    )
 }
 
 data class HabitInsightResult(

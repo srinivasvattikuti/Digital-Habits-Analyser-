@@ -16,47 +16,60 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
+// Sleek Midnight Dark Mode
 private val DarkColorScheme = darkColorScheme(
-    primary = DarkPrimary,
-    onPrimary = DarkOnPrimary,
+    primary = DarkPrimary,                  // Electric Indigo #6366F1
+    onPrimary = Color.White,
     primaryContainer = DarkPrimaryContainer,
     onPrimaryContainer = DarkOnPrimaryContainer,
-    secondary = DarkSecondary,
-    onSecondary = DarkOnSecondary,
-    secondaryContainer = DarkSurfaceVariant,
-    onSecondaryContainer = DarkOnPrimaryContainer,
-    background = DarkBackground,
-    onBackground = Color(0xFFFFFFFF),
-    surface = DarkSurface,
-    onSurface = Color(0xFFFFFFFF),
+    secondary = DarkSecondary,              // Neon Teal #10B981
+    onSecondary = Color.Black,
+    secondaryContainer = DarkSecondaryContainer,
+    onSecondaryContainer = DarkOnSecondaryContainer,
+    tertiary = ElectricCyan,
+    onTertiary = Color.Black,
+    tertiaryContainer = DarkSurfaceVariant,
+    onTertiaryContainer = DarkTextPrimary,
+    background = DarkBackground,            // Deep navy/black #0B0F19
+    onBackground = DarkTextPrimary,         // Off-white #F1F5F9
+    surface = DarkSurface,                  // Dark charcoal #1E293B
+    onSurface = DarkTextPrimary,            // Off-white #F1F5F9
     surfaceVariant = DarkSurfaceVariant,
-    onSurfaceVariant = Color(0xFFCCCCCC),
-    outline = DarkOutline,
-    error = DarkError
+    onSurfaceVariant = DarkTextSecondary,   // Cool gray #94A3B8
+    outline = DarkOutline,                  // Border #334155
+    outlineVariant = DarkOutlineSubtle,
+    error = DarkError,                      // #EF4444
+    onError = Color.White,
+    errorContainer = Color(0xFF450A0A),
+    onErrorContainer = Color(0xFFFCA5A5)
 )
 
+// Modern Corporate Blue (Light Mode)
 private val LightColorScheme = lightColorScheme(
-    primary = PolishPrimary,
+    primary = LightPrimary,                 // Royal Blue #2563EB
     onPrimary = Color.White,
-    primaryContainer = PolishPrimaryContainer,
-    onPrimaryContainer = PolishOnPrimaryContainer,
-    secondary = PolishMediumRose,
+    primaryContainer = LightPrimaryContainer,
+    onPrimaryContainer = LightOnPrimaryContainer,
+    secondary = LightSecondary,             // Cyan #06B6D4
     onSecondary = Color.White,
-    secondaryContainer = PolishSurfaceVariant,
-    onSecondaryContainer = PolishWineDark,
-    tertiary = PolishRecoContainer,
-    onTertiary = PolishOnReco,
-    tertiaryContainer = PolishRecoContainer,
-    onTertiaryContainer = PolishOnReco,
-    background = PolishBackground,
-    onBackground = PolishTextPrimary,
-    surface = PolishSurface,
-    onSurface = PolishTextPrimary,
-    surfaceVariant = PolishSurfaceVariant,
-    onSurfaceVariant = PolishTextSecondary,
-    outline = PolishOutline,
-    error = RoseRed,
-    onErrorContainer = RoseRed
+    secondaryContainer = LightSecondaryContainer,
+    onSecondaryContainer = LightOnSecondaryContainer,
+    tertiary = VibrantIndigo,
+    onTertiary = Color.White,
+    tertiaryContainer = LightPrimaryContainer,
+    onTertiaryContainer = LightOnPrimaryContainer,
+    background = LightBackground,           // Off-white #F8FAFC
+    onBackground = LightTextPrimary,        // Dark slate #0F172A
+    surface = LightSurface,                 // Pure white #FFFFFF
+    onSurface = LightTextPrimary,           // Dark slate #0F172A
+    surfaceVariant = LightSurfaceVariant,
+    onSurfaceVariant = LightTextSecondary,  // Muted gray #64748B
+    outline = LightOutline,                 // Border #E2E8F0
+    outlineVariant = LightOutlineSubtle,
+    error = LightError,                     // #DC2626
+    onError = Color.White,
+    errorContainer = Color(0xFFFEE2E2),
+    onErrorContainer = Color(0xFF991B1B)
 )
 
 @Composable

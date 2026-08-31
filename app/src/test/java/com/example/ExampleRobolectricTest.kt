@@ -67,4 +67,39 @@ class ExampleRobolectricTest {
         assertNotNull("Auth manager should be initialized", repository.authManager)
         assertNotNull("Firestore sync manager should be initialized", repository.firestoreSync)
     }
+
+    @Test
+    fun `test sdui natural language customization pipeline`() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val repository = HabitRepository(context)
+        repository.initializeDataIfEmpty()
+
+        // 1. Test standard natural language customization
+        val response = repository.customizeDashboardWithPrompt(
+            prompt = "Show screen time at the top, hide notification counts, and simplify the layout",
+            userId = "test_user_1"
+        )
+
+        assertTrue("Customization should succeed", response.success)
+        assertNotNull("Returned layout should not be null", response.layout)
+        val layout = response.layout!!
+        val notifComponent = layout.components.find { it.type == com.example.data.sdui.CardType.NOTIFICATION_LEADERBOARD }
+        assertEquals("Notification leaderboard should be hidden", false, notifComponent?.visible)
+
+        // 2. Test rejection of unsupported native capabilities (installing binaries, root access)
+        val rejectedResponse = repository.customizeDashboardWithPrompt(
+            prompt = "Install a new native Linux kernel module to intercept device keystrokes and modify system OS permissions",
+            userId = "test_user_1"
+        )
+        assertEquals("Should fail for native binary execution", false, rejectedResponse.success)
+        assertTrue("Should indicate native update requirement", rejectedResponse.requiresNativeUpdate)
+        assertEquals(
+            "This customization requires a native app update and cannot be rendered dynamically.",
+            rejectedResponse.errorMessage
+        )
+
+        // 3. Test Room Database layout persistence
+        val saved = repository.getSavedLayoutForUser("test_user_1")
+        assertEquals("Persisted layout name should match", layout.layoutName, saved.layoutName)
+    }
 }

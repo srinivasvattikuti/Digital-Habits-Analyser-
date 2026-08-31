@@ -17,29 +17,25 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.DirectionsWalk
+import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.DashboardCustomize
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.SmartToy
-import androidx.compose.material.icons.filled.Smartphone
-import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ElevatedFilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -59,48 +55,22 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.data.model.AppNotificationFrequencyStat
-import com.example.data.model.DayTrendData
 import com.example.data.model.ProactiveNudge
 import com.example.data.model.UserProfileEntity
 import com.example.data.model.UserRole
-import com.example.data.model.WeeklyChartTrendsState
 import com.example.ui.components.AccountCloudSyncBottomSheet
-import com.example.ui.components.AppUsageRowItem
-import com.example.ui.components.BehaviorForecastCard
-import com.example.ui.components.CategoryDistributionCard
-import com.example.ui.components.CloudStatusIndicatorChip
-import com.example.ui.components.CompulsiveVsIntentionalGaugeCard
-import com.example.ui.components.HabitDimensionsRadarCard
-import com.example.ui.components.HourlyUsageHeatmapCard
-import com.example.ui.components.InteractiveHabitGoalsCard
-import com.example.ui.components.NotificationFrequencyLeaderboardCard
-import com.example.ui.components.ProactiveNudgesSection
-import com.example.ui.components.SummaryMetricCard
-import com.example.ui.components.UsageOverTimeCard
+import com.example.ui.components.DashboardCustomizerSheet
 import com.example.ui.components.UserProfileEditDialog
 import com.example.ui.components.UserProfileScheduleBanner
-import com.example.ui.components.WeekOverWeekComparisonCard
-import com.example.ui.components.WeeklyTrendsOverviewCard
-import androidx.compose.material.icons.filled.CloudDone
-import androidx.compose.material.icons.filled.CloudSync
-import androidx.compose.material.icons.outlined.Cloud
-import com.example.ui.theme.MintEmerald
+import com.example.ui.components.renderDynamicDashboardComponents
 import com.example.ui.theme.PolishAiCallout
-import com.example.ui.theme.PolishLightRose
-import com.example.ui.theme.PolishMediumRose
-import com.example.ui.theme.PolishOnPrimaryContainer
-import com.example.ui.theme.PolishOnReco
 import com.example.ui.theme.PolishOutline
 import com.example.ui.theme.PolishPrimary
 import com.example.ui.theme.PolishPrimaryContainer
-import com.example.ui.theme.PolishRecoContainer
 import com.example.ui.theme.PolishSurfaceVariant
 import com.example.ui.theme.PolishTextMuted
 import com.example.ui.theme.PolishTextSecondary
 import com.example.ui.theme.PolishWineDark
-import com.example.ui.theme.RoseRed
-import com.example.ui.theme.SunsetAmber
 import com.example.viewmodel.DashboardUiState
 import com.example.viewmodel.DateFilter
 
@@ -127,6 +97,14 @@ fun DashboardScreen(
     onSignOut: () -> Unit = {},
     onBackupToCloud: () -> Unit = {},
     onRestoreFromCloud: () -> Unit = {},
+    onOpenCustomizer: () -> Unit = {},
+    onCloseCustomizer: () -> Unit = {},
+    onSendCustomizationPrompt: (String) -> Unit = {},
+    onApplyPresetLayout: (String) -> Unit = {},
+    onResetLayoutToDefault: () -> Unit = {},
+    onToggleComponentVisibility: (String, Boolean) -> Unit = { _, _ -> },
+    onMoveComponent: (String, Boolean) -> Unit = { _, _ -> },
+    onSelectHalfLife: (Float) -> Unit = {},
     onDismissStatus: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -165,6 +143,22 @@ fun DashboardScreen(
         )
     }
 
+    // Natural Language SDUI Customization Dialog/Sheet
+    DashboardCustomizerSheet(
+        isOpen = state.isCustomizerSheetOpen,
+        currentLayout = state.activeLayoutConfig,
+        isCustomizing = state.isCustomizingLayout,
+        customizationExplanation = state.customizationExplanation,
+        customizationError = state.customizationError,
+        isNativeUpdateError = state.isNativeUpdateError,
+        onDismiss = onCloseCustomizer,
+        onSendPrompt = onSendCustomizationPrompt,
+        onApplyPreset = onApplyPresetLayout,
+        onResetToDefault = onResetLayoutToDefault,
+        onToggleComponentVisibility = onToggleComponentVisibility,
+        onMoveComponent = onMoveComponent
+    )
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -172,8 +166,8 @@ fun DashboardScreen(
         contentPadding = PaddingValues(bottom = 96.dp, top = 12.dp, start = 16.dp, end = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // 1. Professional Polish Header matching Design HTML
-        item {
+        // 1. Header with title and quick actions
+        item(key = "dashboard_header") {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -203,6 +197,23 @@ fun DashboardScreen(
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Customize SDUI Layout Button
+                    IconButton(
+                        onClick = onOpenCustomizer,
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(PolishPrimaryContainer)
+                            .testTag("header_sdui_customizer_btn")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Tune,
+                            contentDescription = "Customize Dashboard Layout",
+                            tint = PolishWineDark,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+
                     // Firebase Cloud Sync & Account Button
                     IconButton(
                         onClick = { showCloudSyncSheet = true },
@@ -230,6 +241,7 @@ fun DashboardScreen(
                         }
                     }
 
+                    // Profile Dialog Button
                     IconButton(
                         onClick = { showProfileDialog = true },
                         modifier = Modifier
@@ -246,6 +258,7 @@ fun DashboardScreen(
                         )
                     }
 
+                    // Refresh Live Telemetry
                     IconButton(
                         onClick = onRefreshTelemetry,
                         modifier = Modifier
@@ -270,6 +283,7 @@ fun DashboardScreen(
                         }
                     }
 
+                    // Ask AI Chatbot
                     IconButton(
                         onClick = onNavigateToChat,
                         modifier = Modifier
@@ -289,17 +303,76 @@ fun DashboardScreen(
             }
         }
 
-        // 1.5 User Profile & Schedule Context Banner
-        item {
+        // Active Custom Layout Badge (if customized)
+        if (state.activeLayoutConfig.layoutName != "Holistic Overview") {
+            item(key = "active_custom_layout_banner") {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = PolishPrimaryContainer.copy(alpha = 0.5f),
+                    border = BorderStroke(1.dp, PolishOutline.copy(alpha = 0.5f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .padding(horizontal = 14.dp, vertical = 8.dp)
+                            .fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.DashboardCustomize,
+                                contentDescription = null,
+                                tint = PolishPrimary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = "Active Layout: ${state.activeLayoutConfig.layoutName}",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = PolishWineDark
+                            )
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "Customize",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = PolishPrimary,
+                                modifier = Modifier
+                                    .clickable { onOpenCustomizer() }
+                                    .padding(4.dp)
+                            )
+                            Text(
+                                text = "Reset",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = PolishTextMuted,
+                                modifier = Modifier
+                                    .clickable { onResetLayoutToDefault() }
+                                    .padding(4.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // User Profile & Schedule Context Banner
+        item(key = "user_profile_schedule_banner") {
             UserProfileScheduleBanner(
                 profile = state.userProfile,
                 onEditProfileClick = { showProfileDialog = true }
             )
         }
 
-        // 2. Status message banner (if active)
+        // Status Message Banner (if active)
         if (state.statusMessage != null) {
-            item {
+            item(key = "status_message_banner") {
                 Surface(
                     shape = RoundedCornerShape(16.dp),
                     color = PolishAiCallout,
@@ -343,9 +416,9 @@ fun DashboardScreen(
             }
         }
 
-        // 3. Permission Notice Card (if not fully enabled)
+        // Permission Notice Card (if not fully enabled)
         if (!state.hasUsageAccess || !state.hasNotificationAccess) {
-            item {
+            item(key = "permission_notice_card") {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -416,430 +489,20 @@ fun DashboardScreen(
             }
         }
 
-        // 4. Hero Section: Daily Usage Card matching Design HTML (#FFDAD6 container)
-        item {
-            val hours = state.totalScreenTimeMinutes / 60
-            val mins = state.totalScreenTimeMinutes % 60
-            val timeFormatted = if (hours > 0) "${hours}h ${mins}m" else "${mins}m"
-
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("hero_daily_usage_card"),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = PolishPrimaryContainer),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Daily Usage",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp
-                            ),
-                            color = PolishWineDark
-                        )
-
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = Color.White.copy(alpha = 0.45f)
-                        ) {
-                            Text(
-                                text = state.selectedFilter.label,
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 11.sp
-                                ),
-                                color = PolishWineDark,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                            )
-                        }
-                    }
-
-                    Row(
-                        verticalAlignment = Alignment.Bottom,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = timeFormatted,
-                            style = MaterialTheme.typography.displaySmall.copy(
-                                fontWeight = FontWeight.Black,
-                                fontSize = 36.sp
-                            ),
-                            color = PolishWineDark
-                        )
-                        Text(
-                            text = "total activity",
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                fontWeight = FontWeight.Medium
-                            ),
-                            color = PolishWineDark.copy(alpha = 0.7f),
-                            modifier = Modifier.padding(bottom = 4.dp)
-                        )
-                    }
-
-                    // Multi-segment category bar in hero
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(12.dp)
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(Color.White.copy(alpha = 0.25f)),
-                        horizontalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .weight(0.45f)
-                                .height(12.dp)
-                                .background(PolishPrimary)
-                        )
-                        Box(
-                            modifier = Modifier
-                                .weight(0.30f)
-                                .height(12.dp)
-                                .background(PolishMediumRose)
-                        )
-                        Box(
-                            modifier = Modifier
-                                .weight(0.25f)
-                                .height(12.dp)
-                                .background(PolishLightRose)
-                        )
-                    }
-
-                    // Category Labels
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "SOCIAL",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.sp,
-                                fontSize = 10.sp
-                            ),
-                            color = PolishWineDark.copy(alpha = 0.65f)
-                        )
-                        Text(
-                            text = "ENTERTAINMENT",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.sp,
-                                fontSize = 10.sp
-                            ),
-                            color = PolishWineDark.copy(alpha = 0.65f)
-                        )
-                        Text(
-                            text = "UTILITY",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.sp,
-                                fontSize = 10.sp
-                            ),
-                            color = PolishWineDark.copy(alpha = 0.65f)
-                        )
-                    }
-                }
-            }
-        }
-
-        // 5. Quick Filter Pills & AI Trigger
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Filter pills
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    DateFilter.entries.forEach { filter ->
-                        ElevatedFilterChip(
-                            selected = state.selectedFilter == filter,
-                            onClick = { onFilterSelected(filter) },
-                            label = { Text(filter.label) },
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.testTag("filter_chip_${filter.name.lowercase()}"),
-                            colors = FilterChipDefaults.elevatedFilterChipColors(
-                                selectedContainerColor = PolishPrimary,
-                                selectedLabelColor = Color.White,
-                                containerColor = MaterialTheme.colorScheme.surface,
-                                labelColor = PolishTextSecondary
-                            )
-                        )
-                    }
-                }
-
-                // AI Action / Pipeline Button
-                Button(
-                    onClick = onRunAiAnalysis,
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = PolishPrimary),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                    modifier = Modifier.testTag("run_ai_pipeline_button")
-                ) {
-                    if (state.isAnalyzing) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(14.dp),
-                            color = Color.White,
-                            strokeWidth = 2.dp
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.AutoAwesome,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = Color.White
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                    }
-                    Text("Analyze", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold))
-                }
-            }
-        }
-
-        // 6. Real-Time Proactive Habit Nudges & Suggestions
-        if (state.proactiveNudges.isNotEmpty()) {
-            item {
-                ProactiveNudgesSection(
-                    nudges = state.proactiveNudges,
-                    onNudgeAction = onNudgeAction
-                )
-            }
-        }
-
-        // 7. Interactive Weekly Vico Chart Trends & Notification Frequency
-        item {
-            WeeklyTrendsOverviewCard(
-                weeklyTrends = state.weeklyChartTrends,
-                dailyScreenBudgetMinutes = state.userProfile?.dailyScreenTimeTargetMinutes ?: 210,
-                onOpenInsightDeepDive = onNavigateToChat
-            )
-        }
-
-        // 8. Top Disrupters & Notification Frequency Leaderboard
-        if (state.weeklyChartTrends.topNotifyingApps.isNotEmpty()) {
-            item {
-                NotificationFrequencyLeaderboardCard(
-                    apps = state.weeklyChartTrends.topNotifyingApps,
-                    totalWeeklyNotifications = state.weeklyChartTrends.totalWeeklyNotifications
-                )
-            }
-        }
-
-        // 9. Week-Over-Week Comparison Section (Calculated Averages & Percentage Changes)
-        item {
-            WeekOverWeekComparisonCard(summary = state.weekOverWeekSummary)
-        }
-
-        // 8. Interactive Habit Goals & Target Adjuster
-        item {
-            InteractiveHabitGoalsCard(
-                goalProgressList = state.goalProgressList,
-                onUpdateGoalTarget = onUpdateGoalTarget,
-                onToggleGoal = onToggleGoal
-            )
-        }
-
-        // 9. Behavioral Forecasting & Bedtime Doomscroll Predictor
-        item {
-            BehaviorForecastCard(
-                forecast = state.behaviorForecast,
-                onOpenCopilot = onNavigateToChat
-            )
-        }
-
-        // 10. 5-Pillar Holistic Equilibrium Radar Chart
-        item {
-            HabitDimensionsRadarCard(dimensions = state.habitDimensions)
-        }
-
-        // 11. Key Metric Cards Grid (2x2)
-        item {
-            val hours = state.totalScreenTimeMinutes / 60
-            val mins = state.totalScreenTimeMinutes % 60
-            val timeFormatted = if (hours > 0) "${hours}h ${mins}m" else "${mins}m"
-
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    SummaryMetricCard(
-                        title = "Screen Time",
-                        value = timeFormatted,
-                        subtitle = "Total active usage",
-                        icon = Icons.Default.Schedule,
-                        iconTint = PolishPrimary,
-                        modifier = Modifier.weight(1f)
-                    )
-                    SummaryMetricCard(
-                        title = "App Opens",
-                        value = "${state.totalOpens}",
-                        subtitle = "Total launches",
-                        icon = Icons.Default.Smartphone,
-                        iconTint = PolishPrimary,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    SummaryMetricCard(
-                        title = "Compulsive Ratio",
-                        value = "${state.compulsiveScore}%",
-                        subtitle = "Reflex micro-checks (<30s)",
-                        icon = Icons.Default.TouchApp,
-                        iconTint = PolishPrimary,
-                        modifier = Modifier.weight(1f)
-                    )
-                    SummaryMetricCard(
-                        title = "Notifications",
-                        value = "${state.totalNotifications}",
-                        subtitle = if (state.currentSteps > 0) "${state.currentSteps} steps logged" else "Alert frequency",
-                        icon = if (state.currentSteps > 0) Icons.Default.DirectionsWalk else Icons.Default.Notifications,
-                        iconTint = PolishPrimary,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-        }
-
-        // 7. Interactive Usage Over Time Chart
-        item {
-            UsageOverTimeCard(dailyTrends = state.dailyTrendStats)
-        }
-
-        // 8. Activity Density (24h) Heatmap & AI Insight Card matching Design HTML
-        item {
-            HourlyUsageHeatmapCard(
-                hourlyStats = state.hourlyStats,
-                aiSummary = state.latestInsight?.keyTakeaway,
-                onAskAboutHour = onAskAboutHour
-            )
-        }
-
-        // 8. Recommendation Action Banner matching Design HTML (#D1E1FF container)
-        item {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onNavigateToChat() }
-                    .testTag("recommendation_action_card"),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = PolishRecoContainer),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .padding(18.dp)
-                        .fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        Text(
-                            text = "RECOMMENDATION",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.sp,
-                                fontSize = 11.sp
-                            ),
-                            color = PolishOnReco
-                        )
-                        Text(
-                            text = "Switch to 'Forest' or 'Matter' for deep focus?",
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                fontWeight = FontWeight.SemiBold
-                            ),
-                            color = PolishOnReco
-                        )
-                    }
-
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = "Open Recommendation",
-                        tint = PolishOnReco,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            }
-        }
-
-        // 9. Compulsive vs Intentional Gauge
-        item {
-            CompulsiveVsIntentionalGaugeCard(
-                compulsiveScore = state.compulsiveScore,
-                totalOpens = state.totalOpens,
-                compulsiveSummary = state.latestInsight?.compulsiveSummary ?: ""
-            )
-        }
-
-        // 10. Category Breakdown
-        item {
-            CategoryDistributionCard(categoryStats = state.categoryStats)
-        }
-
-        // 11. Top Dominating Apps Header
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "App Usage & Focus Dominance",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Text(
-                    text = "${state.topApps.size} apps tracked",
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                    color = PolishTextMuted
-                )
-            }
-        }
-
-        // Top Apps Items
-        items(state.topApps.take(8)) { app ->
-            AppUsageRowItem(app = app)
-        }
-
-        // 12. Demo Data Generation Button
-        item {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 12.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                OutlinedButton(
-                    onClick = onPopulateDemoData,
-                    shape = RoundedCornerShape(14.dp),
-                    border = BorderStroke(1.dp, PolishOutline),
-                    modifier = Modifier.testTag("populate_demo_data_btn")
-                ) {
-                    Text(
-                        "Populate 7-Day Demo History",
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = PolishPrimary
-                    )
-                }
-            }
-        }
+        // 2. Server-Driven UI Dynamic Components
+        renderDynamicDashboardComponents(
+            layoutConfig = state.activeLayoutConfig,
+            state = state,
+            onFilterSelected = onFilterSelected,
+            onRunAiAnalysis = onRunAiAnalysis,
+            onNavigateToChat = onNavigateToChat,
+            onAskAboutHour = { hour -> onAskAboutHour?.invoke(hour) },
+            onNudgeAction = onNudgeAction,
+            onUpdateGoalTarget = onUpdateGoalTarget,
+            onToggleGoal = onToggleGoal,
+            onPopulateDemoData = onPopulateDemoData,
+            onOpenCustomizer = onOpenCustomizer,
+            onSelectHalfLife = onSelectHalfLife
+        )
     }
 }

@@ -193,6 +193,14 @@ fun HabitTrackerApp(viewModel: HabitTrackerViewModel) {
                             onSignOut = viewModel::signOut,
                             onBackupToCloud = viewModel::backupToCloud,
                             onRestoreFromCloud = viewModel::restoreFromCloud,
+                            onOpenCustomizer = viewModel::openCustomizerSheet,
+                            onCloseCustomizer = viewModel::closeCustomizerSheet,
+                            onSendCustomizationPrompt = viewModel::customizeDashboardWithPrompt,
+                            onApplyPresetLayout = viewModel::applyPresetLayout,
+                            onResetLayoutToDefault = viewModel::resetDashboardLayoutToDefault,
+                            onToggleComponentVisibility = viewModel::toggleComponentVisibility,
+                            onMoveComponent = viewModel::moveComponent,
+                            onSelectHalfLife = viewModel::setRecencyHalfLife,
                             onNudgeAction = { nudge ->
                                 viewModel.sendChatMessage("How can I act on this habit recommendation: '${nudge.title} - ${nudge.message}'?")
                                 currentDestination = HabitDestination.ASK_AI
@@ -221,6 +229,11 @@ fun HabitTrackerApp(viewModel: HabitTrackerViewModel) {
                             habitDimensions = dashboardState.habitDimensions,
                             weeklyTrends = dashboardState.weeklyChartTrends,
                             dailyScreenBudgetMinutes = dashboardState.userProfile?.dailyScreenTimeTargetMinutes ?: 210,
+                            researchMetrics = dashboardState.researchMetrics,
+                            longitudinalComparisons = dashboardState.longitudinalComparisons,
+                            incrementalMemory = dashboardState.incrementalMemory,
+                            halfLifeDays = dashboardState.halfLifeDays,
+                            onSelectHalfLife = viewModel::setRecencyHalfLife,
                             onOpenCopilot = { currentDestination = HabitDestination.ASK_AI }
                         )
                         HabitDestination.RECOMMENDATIONS -> RecommendationsScreen(

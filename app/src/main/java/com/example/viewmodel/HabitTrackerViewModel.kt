@@ -22,6 +22,10 @@ import com.example.data.model.GoalProgressItem
 import com.example.data.model.HabitDimensionScore
 import com.example.data.model.HabitGoalEntity
 import com.example.data.model.HabitInsightEntity
+import com.example.data.model.HabitAnalyticsSnapshotEntity
+import com.example.data.model.IncrementalAiAnalysisMemoryEntity
+import com.example.data.model.LongitudinalCategoryComparison
+import com.example.data.model.ResearchHabitMetrics
 import com.example.data.model.ProactiveNudge
 import com.example.data.model.UsageEventEntity
 import com.example.data.model.UserProfileEntity
@@ -119,7 +123,17 @@ data class DashboardUiState(
     val hasNotificationAccess: Boolean = false,
     val isChatLoading: Boolean = false,
     val statusMessage: String? = null,
-    val currentSteps: Int = 0
+    val currentSteps: Int = 0,
+    val activeLayoutConfig: com.example.data.sdui.DashboardLayoutConfig = com.example.data.sdui.ServerDrivenUiPipeline().getDefaultLayout(),
+    val isCustomizingLayout: Boolean = false,
+    val customizationExplanation: String? = null,
+    val customizationError: String? = null,
+    val isNativeUpdateError: Boolean = false,
+    val isCustomizerSheetOpen: Boolean = false,
+    val researchMetrics: ResearchHabitMetrics = ResearchHabitMetrics(),
+    val longitudinalComparisons: List<LongitudinalCategoryComparison> = emptyList(),
+    val incrementalMemory: IncrementalAiAnalysisMemoryEntity? = null,
+    val halfLifeDays: Float = 3.5f
 )
 
 class HabitTrackerViewModel(application: Application) : AndroidViewModel(application) {
@@ -141,6 +155,30 @@ class HabitTrackerViewModel(application: Application) : AndroidViewModel(applica
 
     private val _statusMessage = MutableStateFlow<String?>(null)
     val statusMessage: StateFlow<String?> = _statusMessage.asStateFlow()
+
+    private val _permissionRefreshTrigger = MutableStateFlow(0L)
+
+    private val _halfLifeDays = MutableStateFlow(3.5f)
+    val halfLifeDays: StateFlow<Float> = _halfLifeDays.asStateFlow()
+
+    // Server-Driven UI (SDUI) States
+    private val _activeLayout = MutableStateFlow(repository.sduiPipeline.getDefaultLayout())
+    val activeLayout: StateFlow<com.example.data.sdui.DashboardLayoutConfig> = _activeLayout.asStateFlow()
+
+    private val _isCustomizingLayout = MutableStateFlow(false)
+    val isCustomizingLayout: StateFlow<Boolean> = _isCustomizingLayout.asStateFlow()
+
+    private val _customizationExplanation = MutableStateFlow<String?>(null)
+    val customizationExplanation: StateFlow<String?> = _customizationExplanation.asStateFlow()
+
+    private val _customizationError = MutableStateFlow<String?>(null)
+    val customizationError: StateFlow<String?> = _customizationError.asStateFlow()
+
+    private val _isNativeUpdateError = MutableStateFlow(false)
+    val isNativeUpdateError: StateFlow<Boolean> = _isNativeUpdateError.asStateFlow()
+
+    private val _isCustomizerSheetOpen = MutableStateFlow(false)
+    val isCustomizerSheetOpen: StateFlow<Boolean> = _isCustomizerSheetOpen.asStateFlow()
 
     val installedApps: StateFlow<List<AppInfoEntity>> = repository.installedApps
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -180,7 +218,16 @@ class HabitTrackerViewModel(application: Application) : AndroidViewModel(applica
         repository.firestoreSync.syncStatus,
         repository.firestoreSync.lastSyncTimestamp,
         repository.firestoreSync.lastSyncSummary,
-        repository.firestoreSync.syncErrorMessage
+        repository.firestoreSync.syncErrorMessage,
+        _permissionRefreshTrigger,
+        _activeLayout,
+        _isCustomizingLayout,
+        _customizationExplanation,
+        _customizationError,
+        _isNativeUpdateError,
+        _isCustomizerSheetOpen,
+        _halfLifeDays,
+        repository.incrementalMemory
     ) { args ->
         val filter = args[0] as DateFilter
         @Suppress("UNCHECKED_CAST")
@@ -203,6 +250,14 @@ class HabitTrackerViewModel(application: Application) : AndroidViewModel(applica
         val lastSyncTimestamp = args[14] as? Long
         val lastSyncSummary = args[15] as? SyncSummary
         val syncErrorMsg = args[16] as? String
+        val activeLayoutConfig = args[18] as com.example.data.sdui.DashboardLayoutConfig
+        val isCustomizing = args[19] as Boolean
+        val customExplanation = args[20] as? String
+        val customError = args[21] as? String
+        val isNativeErr = args[22] as Boolean
+        val isSheetOpen = args[23] as Boolean
+        val currentHalfLife = (args[24] as? Float) ?: 3.5f
+        val incMemory = args[25] as? IncrementalAiAnalysisMemoryEntity
 
         // Compute startDate string for current filter
         val cal = Calendar.getInstance()
@@ -334,6 +389,21 @@ class HabitTrackerViewModel(application: Application) : AndroidViewModel(applica
         // ==========================================
         val weeklyChartTrends = computeWeeklyChartTrends(allAggs, events)
 
+        // ==========================================
+        // 7. DATA SCIENCE RESEARCH METRICS & LONGITUDINAL COMPARISONS
+        // ==========================================
+        val researchMetrics = repository.researchEngine.computeResearchMetrics(
+            aggregates = allAggs,
+            events = events,
+            userProfile = profile,
+            halfLifeDays = currentHalfLife
+        )
+
+        val longitudinalComparisons = repository.researchEngine.computeLongitudinalCategoryComparisons(
+            aggregates = allAggs,
+            halfLifeDays = currentHalfLife
+        )
+
         val hasUsage = repository.usageCollector.hasUsageStatsPermission()
         val hasNotif = HabitNotificationListenerService.isNotificationAccessGranted(getApplication())
 
@@ -369,12 +439,23 @@ class HabitTrackerViewModel(application: Application) : AndroidViewModel(applica
             hasNotificationAccess = hasNotif,
             isChatLoading = chatLoading,
             statusMessage = statusMsg,
-            currentSteps = filteredAggs.maxOfOrNull { it.stepsCount } ?: repository.healthCollector.currentSteps.value
+            currentSteps = filteredAggs.maxOfOrNull { it.stepsCount } ?: repository.healthCollector.currentSteps.value,
+            activeLayoutConfig = activeLayoutConfig,
+            isCustomizingLayout = isCustomizing,
+            customizationExplanation = customExplanation,
+            customizationError = customError,
+            isNativeUpdateError = isNativeErr,
+            isCustomizerSheetOpen = isSheetOpen,
+            researchMetrics = researchMetrics,
+            longitudinalComparisons = longitudinalComparisons,
+            incrementalMemory = incMemory,
+            halfLifeDays = currentHalfLife
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardUiState())
 
     init {
         checkPermissionsAndLoad()
+        loadSavedDashboardLayout()
         repository.healthCollector.startListening()
     }
 
@@ -387,22 +468,35 @@ class HabitTrackerViewModel(application: Application) : AndroidViewModel(applica
         _selectedFilter.value = filter
     }
 
+    fun setRecencyHalfLife(days: Float) {
+        _halfLifeDays.value = days.coerceIn(1.0f, 14.0f)
+    }
+
     fun checkPermissionsAndLoad() {
+        _permissionRefreshTrigger.value = System.currentTimeMillis()
         viewModelScope.launch {
             repository.initializeDataIfEmpty()
+            _permissionRefreshTrigger.value = System.currentTimeMillis()
         }
     }
 
     fun refreshTelemetry() {
         viewModelScope.launch {
             _isSyncing.value = true
-            _statusMessage.value = "Syncing local usage telemetry..."
+            _permissionRefreshTrigger.value = System.currentTimeMillis()
+            _statusMessage.value = "Scanning device apps and usage stats..."
             val success = repository.refreshUsageTelemetry()
             if (!success) {
-                _statusMessage.value = "Usage permission needed for live telemetry. Showing local/demo database."
+                _statusMessage.value = "Usage Access permission required to scan device telemetry."
             } else {
-                _statusMessage.value = "Live usage data successfully synced!"
+                _statusMessage.value = "All installed apps and live usage telemetry synced!"
+                try {
+                    repository.runAiHabitPipeline()
+                } catch (e: Exception) {
+                    // Ignore
+                }
             }
+            _permissionRefreshTrigger.value = System.currentTimeMillis()
             _isSyncing.value = false
         }
     }
@@ -467,6 +561,120 @@ class HabitTrackerViewModel(application: Application) : AndroidViewModel(applica
 
     fun clearStatusMessage() {
         _statusMessage.value = null
+    }
+
+    // ==========================================
+    // SERVER-DRIVEN UI CUSTOMIZATION ENGINE
+    // ==========================================
+
+    fun openCustomizerSheet() {
+        _isCustomizerSheetOpen.value = true
+        _customizationError.value = null
+    }
+
+    fun closeCustomizerSheet() {
+        _isCustomizerSheetOpen.value = false
+    }
+
+    fun loadSavedDashboardLayout() {
+        viewModelScope.launch {
+            val userId = repository.authManager.currentUserId ?: "current_user"
+            val layout = repository.getSavedLayoutForUser(userId)
+            _activeLayout.value = layout
+        }
+    }
+
+    fun customizeDashboardWithPrompt(prompt: String) {
+        if (prompt.isBlank()) return
+        viewModelScope.launch {
+            _isCustomizingLayout.value = true
+            _customizationError.value = null
+            _isNativeUpdateError.value = false
+            _statusMessage.value = "Translating layout request via Gemini engine..."
+
+            try {
+                val userId = repository.authManager.currentUserId ?: "current_user"
+                val response = repository.customizeDashboardWithPrompt(
+                    prompt = prompt,
+                    userId = userId,
+                    currentLayout = _activeLayout.value
+                )
+
+                if (response.success && response.layout != null) {
+                    _activeLayout.value = response.layout
+                    _customizationExplanation.value = response.explanation
+                    _customizationError.value = null
+                    _isNativeUpdateError.value = false
+                    _statusMessage.value = "Dashboard reconfigured: ${response.layout.layoutName}"
+                } else {
+                    _customizationError.value = response.errorMessage ?: "Customization failed"
+                    _isNativeUpdateError.value = response.requiresNativeUpdate
+                    _statusMessage.value = response.errorMessage ?: "Customization rejected"
+                }
+            } catch (e: Exception) {
+                _customizationError.value = e.message ?: "Failed to process UI customization"
+                _statusMessage.value = "Error customizing dashboard: ${e.message}"
+            } finally {
+                _isCustomizingLayout.value = false
+            }
+        }
+    }
+
+    fun applyPresetLayout(presetId: String) {
+        viewModelScope.launch {
+            val userId = repository.authManager.currentUserId ?: "current_user"
+            val preset = repository.applyPresetLayout(presetId, userId)
+            _activeLayout.value = preset
+            _customizationExplanation.value = "Applied preset: ${preset.layoutName}"
+            _customizationError.value = null
+            _isNativeUpdateError.value = false
+            _statusMessage.value = "Applied preset layout: ${preset.layoutName}"
+        }
+    }
+
+    fun resetDashboardLayoutToDefault() {
+        viewModelScope.launch {
+            val userId = repository.authManager.currentUserId ?: "current_user"
+            val defaultLayout = repository.resetDashboardLayoutToDefault(userId)
+            _activeLayout.value = defaultLayout
+            _customizationExplanation.value = "Reset to standard holistic overview."
+            _customizationError.value = null
+            _isNativeUpdateError.value = false
+            _statusMessage.value = "Reset dashboard to default overview."
+        }
+    }
+
+    fun toggleComponentVisibility(componentId: String, visible: Boolean) {
+        val current = _activeLayout.value
+        val updated = current.components.map { comp ->
+            if (comp.id == componentId) comp.copy(visible = visible) else comp
+        }
+        val newLayout = current.copy(components = updated, timestamp = System.currentTimeMillis())
+        _activeLayout.value = newLayout
+        viewModelScope.launch {
+            val userId = repository.authManager.currentUserId ?: "current_user"
+            repository.saveDashboardLayout(userId, newLayout)
+        }
+    }
+
+    fun moveComponent(componentId: String, moveUp: Boolean) {
+        val current = _activeLayout.value
+        val list = current.components.sortedBy { it.position }.toMutableList()
+        val index = list.indexOfFirst { it.id == componentId }
+        if (index == -1) return
+
+        val targetIndex = if (moveUp) index - 1 else index + 1
+        if (targetIndex in 0 until list.size) {
+            val item = list.removeAt(index)
+            list.add(targetIndex, item)
+            val reindexed = list.mapIndexed { idx, comp -> comp.copy(position = idx + 1) }
+            val newLayout = current.copy(components = reindexed, timestamp = System.currentTimeMillis())
+            _activeLayout.value = newLayout
+            viewModelScope.launch {
+                val userId = repository.authManager.currentUserId ?: "current_user"
+                repository.saveDashboardLayout(userId, newLayout)
+            }
+        }
     }
 
     // ==========================================

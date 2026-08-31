@@ -11,6 +11,8 @@ import com.example.data.model.ChatMessageEntity
 import com.example.data.model.DailyAggregateEntity
 import com.example.data.model.HabitGoalEntity
 import com.example.data.model.HabitInsightEntity
+import com.example.data.model.HabitAnalyticsSnapshotEntity
+import com.example.data.model.IncrementalAiAnalysisMemoryEntity
 import com.example.data.model.UsageEventEntity
 import com.example.data.model.UserProfileEntity
 import kotlinx.coroutines.flow.Flow
@@ -137,6 +139,9 @@ interface HabitGoalDao {
     @Query("SELECT * FROM habit_goals ORDER BY id ASC")
     suspend fun getAllGoalsSync(): List<HabitGoalEntity>
 
+    @Query("SELECT * FROM habit_goals WHERE userId = :userId ORDER BY id ASC")
+    fun getGoalsForUser(userId: String): Flow<List<HabitGoalEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertGoals(goals: List<HabitGoalEntity>)
 
@@ -149,22 +154,85 @@ interface HabitGoalDao {
     @Query("UPDATE habit_goals SET isEnabled = :isEnabled WHERE id = :id")
     suspend fun updateGoalEnabled(id: String, isEnabled: Boolean)
 
+    @Query("DELETE FROM habit_goals WHERE id = :id")
+    suspend fun deleteGoal(id: String)
+
     @Query("DELETE FROM habit_goals")
     suspend fun clearAll()
 }
 
 @Dao
 interface UserProfileDao {
-    @Query("SELECT * FROM user_profiles WHERE id = 1 LIMIT 1")
+    @Query("SELECT * FROM user_profiles WHERE isActiveProfile = 1 LIMIT 1")
     fun getUserProfile(): Flow<UserProfileEntity?>
 
-    @Query("SELECT * FROM user_profiles WHERE id = 1 LIMIT 1")
+    @Query("SELECT * FROM user_profiles WHERE isActiveProfile = 1 LIMIT 1")
     suspend fun getUserProfileSync(): UserProfileEntity?
+
+    @Query("SELECT * FROM user_profiles WHERE userId = :userId LIMIT 1")
+    fun getUserProfileByUserId(userId: String): Flow<UserProfileEntity?>
+
+    @Query("SELECT * FROM user_profiles WHERE userId = :userId LIMIT 1")
+    suspend fun getUserProfileByUserIdSync(userId: String): UserProfileEntity?
+
+    @Query("SELECT * FROM user_profiles ORDER BY updatedAt DESC")
+    fun getAllProfiles(): Flow<List<UserProfileEntity>>
+
+    @Query("SELECT * FROM user_profiles ORDER BY updatedAt DESC")
+    suspend fun getAllProfilesSync(): List<UserProfileEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertUserProfile(profile: UserProfileEntity)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertUserProfiles(profiles: List<UserProfileEntity>)
+
+    @Query("UPDATE user_profiles SET isActiveProfile = CASE WHEN id = :profileId THEN 1 ELSE 0 END")
+    suspend fun setActiveProfile(profileId: Int)
+
+    @Query("DELETE FROM user_profiles WHERE id = :profileId")
+    suspend fun deleteProfile(profileId: Int)
+
     @Query("DELETE FROM user_profiles")
     suspend fun clearAll()
+}
+
+@Dao
+interface HabitAnalyticsSnapshotDao {
+    @Query("SELECT * FROM analytics_snapshots WHERE userId = :userId ORDER BY timestamp DESC")
+    fun getAllSnapshots(userId: String = "current_user"): Flow<List<HabitAnalyticsSnapshotEntity>>
+
+    @Query("SELECT * FROM analytics_snapshots WHERE userId = :userId ORDER BY timestamp DESC LIMIT 1")
+    fun getLatestSnapshot(userId: String = "current_user"): Flow<HabitAnalyticsSnapshotEntity?>
+
+    @Query("SELECT * FROM analytics_snapshots WHERE userId = :userId ORDER BY timestamp DESC LIMIT 1")
+    suspend fun getLatestSnapshotSync(userId: String = "current_user"): HabitAnalyticsSnapshotEntity?
+
+    @Query("SELECT * FROM analytics_snapshots WHERE userId = :userId AND isBaselineAnchor = 1 ORDER BY timestamp DESC LIMIT 1")
+    suspend fun getBaselineAnchorSnapshot(userId: String = "current_user"): HabitAnalyticsSnapshotEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSnapshot(snapshot: HabitAnalyticsSnapshotEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSnapshots(snapshots: List<HabitAnalyticsSnapshotEntity>)
+
+    @Query("DELETE FROM analytics_snapshots WHERE userId = :userId")
+    suspend fun clearAllForUser(userId: String = "current_user")
+}
+
+@Dao
+interface IncrementalAiMemoryDao {
+    @Query("SELECT * FROM incremental_ai_memory WHERE userId = :userId LIMIT 1")
+    fun getMemory(userId: String = "current_user"): Flow<IncrementalAiAnalysisMemoryEntity?>
+
+    @Query("SELECT * FROM incremental_ai_memory WHERE userId = :userId LIMIT 1")
+    suspend fun getMemorySync(userId: String = "current_user"): IncrementalAiAnalysisMemoryEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMemory(memory: IncrementalAiAnalysisMemoryEntity)
+
+    @Query("DELETE FROM incremental_ai_memory WHERE userId = :userId")
+    suspend fun clearMemory(userId: String = "current_user")
 }
 

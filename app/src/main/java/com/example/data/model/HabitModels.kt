@@ -166,7 +166,8 @@ data class HabitGoalEntity(
     val unit: String, // "min", "steps", "opens", "PM"
     val isEnabled: Boolean = true,
     val iconKey: String = "timer",
-    val colorHex: String = "#BA1A1A"
+    val colorHex: String = "#BA1A1A",
+    val userId: String = "current_user"
 )
 
 enum class UserRole(
@@ -195,6 +196,8 @@ enum class UserRole(
 @Entity(tableName = "user_profiles")
 data class UserProfileEntity(
     @PrimaryKey val id: Int = 1,
+    val userId: String = "current_user",
+    val email: String = "",
     val name: String = "You",
     val age: Int = 26,
     val gender: String = "Prefer not to say", // "Female", "Male", "Non-binary", "Prefer not to say"
@@ -210,6 +213,7 @@ data class UserProfileEntity(
     val dailyScreenTimeTargetMinutes: Int = 210,
     val isKidMode: Boolean = false,
     val isProfileCompleted: Boolean = true,
+    val isActiveProfile: Boolean = true,
     val updatedAt: Long = System.currentTimeMillis()
 ) {
     fun getRole(): UserRole = UserRole.fromKey(roleKey)

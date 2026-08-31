@@ -45,10 +45,17 @@ import androidx.compose.ui.unit.sp
 import com.example.data.model.BehaviorForecast
 import com.example.data.model.HabitDimensionScore
 import com.example.data.model.HabitInsightEntity
+import com.example.data.model.IncrementalAiAnalysisMemoryEntity
+import com.example.data.model.LongitudinalCategoryComparison
+import com.example.data.model.ResearchHabitMetrics
 import com.example.data.model.WeekOverWeekSummary
 import com.example.data.model.WeeklyChartTrendsState
 import com.example.ui.components.BehaviorForecastCard
+import com.example.ui.components.CircadianSleepImpactCard
 import com.example.ui.components.HabitDimensionsRadarCard
+import com.example.ui.components.LongitudinalBaselineVsRecentCard
+import com.example.ui.components.ResearchHabitScienceCard
+import com.example.ui.components.TokenEfficientAiMemoryCard
 import com.example.ui.components.WeekOverWeekComparisonCard
 import com.example.ui.components.WeeklyTrendsOverviewCard
 import com.example.ui.components.NotificationFrequencyLeaderboardCard
@@ -76,6 +83,11 @@ fun InsightsScreen(
     habitDimensions: List<HabitDimensionScore> = emptyList(),
     weeklyTrends: WeeklyChartTrendsState = WeeklyChartTrendsState(),
     dailyScreenBudgetMinutes: Int = 210,
+    researchMetrics: ResearchHabitMetrics = ResearchHabitMetrics(),
+    longitudinalComparisons: List<LongitudinalCategoryComparison> = emptyList(),
+    incrementalMemory: IncrementalAiAnalysisMemoryEntity? = null,
+    halfLifeDays: Float = 3.5f,
+    onSelectHalfLife: (Float) -> Unit = {},
     onOpenCopilot: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -234,6 +246,37 @@ fun InsightsScreen(
                         )
                     }
                 }
+            }
+
+            // 1b. Behavioral Science Automaticity & Entropy Research Card
+            item {
+                ResearchHabitScienceCard(
+                    metrics = researchMetrics,
+                    onSelectHalfLife = onSelectHalfLife
+                )
+            }
+
+            // 1c. Longitudinal Baseline vs Recent Decay-Weighted Category Comparison Card
+            item {
+                LongitudinalBaselineVsRecentCard(
+                    comparisons = longitudinalComparisons,
+                    baselineDays = 30,
+                    halfLifeDays = halfLifeDays
+                )
+            }
+
+            // 1d. Circadian Pre-Bedtime Sleep Risk Card
+            item {
+                CircadianSleepImpactCard(
+                    metrics = researchMetrics
+                )
+            }
+
+            // 1e. Incremental AI Memory & Token Optimization Card
+            item {
+                TokenEfficientAiMemoryCard(
+                    memory = incrementalMemory
+                )
             }
 
             // 2. Weekly Vico Trends & Notification Interruption Engine
