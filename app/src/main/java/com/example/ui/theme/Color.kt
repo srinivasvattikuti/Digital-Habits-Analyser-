@@ -36,13 +36,17 @@ val ElectricCyan = Color(0xFF0284C7)
 val VibrantIndigo = Color(0xFF4F46E5)
 
 // Dark Theme Variants
-val PolishDarkBackground = Color(0xFF1A1415)
-val PolishDarkSurface = Color(0xFF241C1D)
-val PolishDarkSurfaceVariant = Color(0xFF36282A)
-val PolishDarkPrimary = Color(0xFFFFB3B6)
-val PolishDarkPrimaryContainer = Color(0xFF7D2930)
-val PolishDarkOnPrimaryContainer = Color(0xFFFFDAD6)
-val PolishDarkOutline = Color(0xFF5C4547)
+val DarkBackground = Color(0xFF121212)
+val DarkSurface = Color(0xFF1E1E1E)
+val DarkSurfaceVariant = Color(0xFF2C2C2C)
+val DarkOutline = Color(0xFF424242)
+val DarkPrimary = Color(0xFF03DAC5) // Cyan
+val DarkOnPrimary = Color(0xFF000000)
+val DarkPrimaryContainer = Color(0xFF018786)
+val DarkOnPrimaryContainer = Color(0xFFFFFFFF)
+val DarkSecondary = Color(0xFFFFC107) // Amber
+val DarkOnSecondary = Color(0xFF000000)
+val DarkError = Color(0xFFCF6679)
 
 // Category specific colors for charts
 val ColorSocial = Color(0xFFE11D48)

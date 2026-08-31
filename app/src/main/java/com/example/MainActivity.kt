@@ -149,11 +149,11 @@ fun HabitTrackerApp(viewModel: HabitTrackerViewModel) {
                                 )
                             },
                             colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = com.example.ui.theme.PolishWineDark,
-                                selectedTextColor = com.example.ui.theme.PolishWineDark,
-                                indicatorColor = com.example.ui.theme.PolishPrimaryContainer,
-                                unselectedIconColor = com.example.ui.theme.PolishTextSecondary,
-                                unselectedTextColor = com.example.ui.theme.PolishTextSecondary
+                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                             ),
                             modifier = Modifier.testTag(dest.testTag)
                         )

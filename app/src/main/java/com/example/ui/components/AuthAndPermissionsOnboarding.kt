@@ -125,19 +125,19 @@ fun AuthAndPermissionsOnboardingScreen(
                 .padding(top = 36.dp, bottom = 48.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // App Branding Header
+                    // App Branding Header
             Box(
                 modifier = Modifier
                     .size(68.dp)
                     .clip(RoundedCornerShape(20.dp))
-                    .background(PolishPrimaryContainer)
-                    .border(1.5.dp, PolishOutline, RoundedCornerShape(20.dp)),
+                    .background(MaterialTheme.colorScheme.primaryContainer)
+                    .border(1.5.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(20.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.AutoAwesome,
                     contentDescription = "HabitFlow Logo",
-                    tint = PolishWineDark,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(36.dp)
                 )
             }
@@ -150,7 +150,7 @@ fun AuthAndPermissionsOnboardingScreen(
                     fontWeight = FontWeight.Bold,
                     fontSize = 26.sp
                 ),
-                color = PolishTextPrimary,
+                color = MaterialTheme.colorScheme.onBackground,
                 textAlign = TextAlign.Center
             )
 
@@ -162,7 +162,7 @@ fun AuthAndPermissionsOnboardingScreen(
                     fontSize = 14.sp,
                     lineHeight = 20.sp
                 ),
-                color = PolishTextSecondary,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 12.dp)
             )
@@ -188,13 +188,13 @@ fun AuthAndPermissionsOnboardingScreen(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(CircleShape)
-                                .background(PolishSurfaceVariant),
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.AccountCircle,
                                 contentDescription = null,
-                                tint = PolishWineDark,
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(22.dp)
                             )
                         }
@@ -202,12 +202,12 @@ fun AuthAndPermissionsOnboardingScreen(
                             Text(
                                 text = "Step 1: Account & Profile",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                color = PolishTextPrimary
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
                                 text = if (authUser != null) "Logged in as ${authUser.displayName ?: authUser.email ?: "User"}" else "Sign in, register, or continue offline",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = PolishTextSecondary
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -333,8 +333,8 @@ fun AuthAndPermissionsOnboardingScreen(
                                     Button(
                                         onClick = { onContinueLocally(email, displayName) },
                                         colors = ButtonDefaults.buttonColors(
-                                            containerColor = PolishPrimary,
-                                            contentColor = Color.White
+                                            containerColor = MaterialTheme.colorScheme.primary,
+                                            contentColor = MaterialTheme.colorScheme.onPrimary
                                         ),
                                         shape = RoundedCornerShape(8.dp),
                                         modifier = Modifier.fillMaxWidth()
@@ -359,10 +359,10 @@ fun AuthAndPermissionsOnboardingScreen(
                                         .testTag("onboarding_name_input"),
                                     shape = RoundedCornerShape(10.dp),
                                     colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = PolishPrimary,
-                                        unfocusedBorderColor = PolishOutline,
-                                        focusedTextColor = PolishTextPrimary,
-                                        unfocusedTextColor = PolishTextPrimary
+                                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                                     )
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
@@ -675,10 +675,10 @@ private fun PermissionRowItem(
 ) {
     Surface(
         shape = RoundedCornerShape(14.dp),
-        color = if (isGranted) MintEmerald.copy(alpha = 0.08f) else PolishSurfaceVariant.copy(alpha = 0.6f),
+        color = if (isGranted) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
         border = BorderStroke(
             1.dp,
-            if (isGranted) MintEmerald.copy(alpha = 0.4f) else PolishOutline
+            if (isGranted) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f) else MaterialTheme.colorScheme.outline
         ),
         modifier = modifier.fillMaxWidth()
     ) {
@@ -695,7 +695,7 @@ private fun PermissionRowItem(
                     Icon(
                         imageVector = icon,
                         contentDescription = title,
-                        tint = if (isGranted) MintEmerald else PolishPrimary,
+                        tint = if (isGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(20.dp)
                     )
                     Text(
@@ -708,7 +708,7 @@ private fun PermissionRowItem(
                 // Status Badge
                 Surface(
                     shape = RoundedCornerShape(20.dp),
-                    color = if (isGranted) MintEmerald.copy(alpha = 0.2f) else SunsetAmber.copy(alpha = 0.2f)
+                    color = if (isGranted) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -718,13 +718,13 @@ private fun PermissionRowItem(
                         Icon(
                             imageVector = if (isGranted) Icons.Default.CheckCircle else Icons.Outlined.WarningAmber,
                             contentDescription = null,
-                            tint = if (isGranted) MintEmerald else SunsetAmber,
+                            tint = if (isGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                             modifier = Modifier.size(14.dp)
                         )
                         Text(
                             text = if (isGranted) "Granted" else "Action Needed",
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 11.sp),
-                            color = if (isGranted) MintEmerald else SunsetAmber
+                            color = if (isGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                         )
                     }
                 }
@@ -748,8 +748,8 @@ private fun PermissionRowItem(
                         .testTag(actionTag),
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = PolishPrimary,
-                        contentColor = Color.White
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
                     )
                 ) {
                     Text("Grant Permission", fontWeight = FontWeight.Bold, fontSize = 13.sp)

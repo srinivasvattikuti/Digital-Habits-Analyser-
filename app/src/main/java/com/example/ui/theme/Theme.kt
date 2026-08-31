@@ -17,23 +17,22 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = PolishDarkPrimary,
-    onPrimary = PolishWineDark,
-    primaryContainer = PolishDarkPrimaryContainer,
-    onPrimaryContainer = PolishDarkOnPrimaryContainer,
-    secondary = PolishLightRose,
-    onSecondary = PolishWineDark,
-    secondaryContainer = PolishDarkSurfaceVariant,
-    onSecondaryContainer = PolishDarkOnPrimaryContainer,
-    tertiary = PolishRecoContainer,
-    onTertiary = PolishOnReco,
-    background = PolishDarkBackground,
-    onBackground = Color(0xFFF3EAEB),
-    surface = PolishDarkSurface,
-    onSurface = Color(0xFFF3EAEB),
-    surfaceVariant = PolishDarkSurfaceVariant,
-    onSurfaceVariant = Color(0xFFE2CECF),
-    outline = PolishDarkOutline
+    primary = DarkPrimary,
+    onPrimary = DarkOnPrimary,
+    primaryContainer = DarkPrimaryContainer,
+    onPrimaryContainer = DarkOnPrimaryContainer,
+    secondary = DarkSecondary,
+    onSecondary = DarkOnSecondary,
+    secondaryContainer = DarkSurfaceVariant,
+    onSecondaryContainer = DarkOnPrimaryContainer,
+    background = DarkBackground,
+    onBackground = Color(0xFFFFFFFF),
+    surface = DarkSurface,
+    onSurface = Color(0xFFFFFFFF),
+    surfaceVariant = DarkSurfaceVariant,
+    onSurfaceVariant = Color(0xFFCCCCCC),
+    outline = DarkOutline,
+    error = DarkError
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -55,7 +54,9 @@ private val LightColorScheme = lightColorScheme(
     onSurface = PolishTextPrimary,
     surfaceVariant = PolishSurfaceVariant,
     onSurfaceVariant = PolishTextSecondary,
-    outline = PolishOutline
+    outline = PolishOutline,
+    error = RoseRed,
+    onErrorContainer = RoseRed
 )
 
 @Composable
